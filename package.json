@@ -1,0 +1,56 @@
+{
+  "name": "@xeplr/monitor",
+  "version": "0.1.0",
+  "description": "See and control a server's services: status, start, stop, restart, kill, and their logs live. Its own sign-in, no database",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "lib/",
+    "bin/",
+    "deploy/",
+    "public/"
+  ],
+  "bin": {
+    "xeplr-monitor-server": "./bin/server.js",
+    "xeplr-monitor-users": "./bin/users.js"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "monitor",
+    "systemd",
+    "journalctl",
+    "logs",
+    "restart",
+    "ops"
+  ],
+  "author": "xeplr",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Xeplr/xeplr-monitor"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build": "vite build --config ui/vite.config.js",
+    "dev:page": "vite --config ui/vite.config.js",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^7.3.7"
+  }
+}
