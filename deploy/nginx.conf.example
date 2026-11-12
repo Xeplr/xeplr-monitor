@@ -1,5 +1,6 @@
-# The monitor behind nginx, on its own name (https only). It listens on
-# 127.0.0.1:19400; nginx is the only way in.
+# The monitor behind nginx, on its own name (https only). nginx forwards to
+# its port; keep that port closed in the firewall, so nginx is the way in.
+# xeplr-monitor-deploy --domain writes this site for you.
 server {
   listen 443 ssl http2;
   server_name monitor.example.com;

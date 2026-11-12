@@ -12,7 +12,8 @@
   ],
   "bin": {
     "xeplr-monitor-server": "./bin/server.js",
-    "xeplr-monitor-users": "./bin/users.js"
+    "xeplr-monitor-users": "./bin/users.js",
+    "xeplr-monitor-deploy": "./bin/deploy.js"
   },
   "exports": {
     ".": "./index.js",

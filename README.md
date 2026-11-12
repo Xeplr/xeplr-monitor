@@ -54,7 +54,43 @@ The page turns these into a short **needs a look** list for a running service: m
 
 There are no defaults for where data lives. A missing required setting stops the server at startup and names it. `requiredEnv` is exported, so a host can add it to its own `env.required.js`.
 
-## Install on a server
+## Deploy to a server, from your laptop
+
+```bash
+npx -p @xeplr/monitor xeplr-monitor-deploy
+```
+
+It asks for what it needs, as it goes, and stores nothing: not in this (public) repository, not on your laptop.
+
+- **The server:** host (or a name from `~/.ssh/config`), SSH login, port, private key file (blank uses ssh-agent or `~/.ssh/config`). The same SSH access BI's deploy uses; the login needs **passwordless sudo**.
+- **The monitor:** the services it may control (`MONITOR_ALLOW`, default `xeplr-*`), its port (19400), and optionally its own web address for nginx, with an https certificate from certbot.
+- **You:** email, name, and a password, typed hidden, twice. Blank keeps the password of a user who already exists.
+
+Then it shows what it will do, asks to confirm, and runs `deploy/install.sh` on the server as root, sent on SSH's input, so no value is ever a file or a command-line argument there. The install:
+
+1. makes the `xeplr-monitor` user (in `systemd-journal`) and `/var/lib/xeplr-monitor` (700);
+2. installs `@xeplr/monitor` of the same version as the command (`--version` to choose);
+3. writes `/etc/xeplr-monitor/monitor.env` (640). **`MONITOR_SECRET` is made on the server the first time and kept on every later deploy**, so a re-deploy signs nobody out;
+4. writes `/etc/sudoers.d/xeplr-monitor` from `MONITOR_ALLOW`, checked with `visudo` first;
+5. checks the monitor's user can ask systemd (D-Bus), writes the systemd unit with node's full path, enables it;
+6. adds you, printing the authenticator secret to add to your phone, or changes your password;
+7. restarts it and checks it answers on its port; with a web address, writes the nginx site, checks it with `nginx -t`, reloads, and runs certbot when asked.
+
+Run it again to update: same questions, Enter keeps the values in brackets. Everything can also be given as arguments, so a re-deploy is one line; only the password is never an argument (it would sit in the shell history and in `ps`; `MONITOR_NEW_PASSWORD` is read for a script):
+
+```bash
+npx -p @xeplr/monitor xeplr-monitor-deploy --host testbi.xeplr.com --user ubuntu --key ~/.ssh/testbi.pem \
+  --allow 'xeplr-*' --domain monitor.xeplr.com --certbot y --email you@xeplr.com --name "Your name"
+npx -p @xeplr/monitor xeplr-monitor-deploy --help
+```
+
+It stops, saying why, when: SSH sign-in fails, the login has no passwordless sudo, Node.js 20+ or npm is missing, `systemd` or D-Bus is not there, the sudoers lines are invalid, a new user has no password, the monitor does not answer after starting (its last log lines are shown), or nginx refuses the site.
+
+Keep the monitor's port closed in the firewall: nginx is the way in.
+
+## Install on a server by hand
+
+What the deploy does, step by step:
 
 ```bash
 # 1. its own user, its folder, the package
@@ -96,7 +132,7 @@ xeplr-monitor-users code <email> [--off]      # a new authenticator secret, or n
 xeplr-monitor-users remove <email>
 ```
 
-Run them as the monitor's user, with `MONITOR_DATA_DIR` set. A password is typed, never passed as an argument, because it would be left in the shell's history and in `ps`. `MONITOR_NEW_PASSWORD` is read instead when set, for a script.
+Run them on the server as the monitor's user, with `MONITOR_DATA_DIR` set. `xeplr-monitor-deploy` runs `add` or `password` for you. A password is typed, never passed as an argument, because it would be left in the shell's history and in `ps`. `MONITOR_NEW_PASSWORD` is read instead when set, for a script.
 
 - **Passwords:** scrypt hashes, at least 12 characters.
 - **Codes:** a new user gets a six-digit code from an authenticator app by default (RFC 6238, 30 seconds; one step either side is accepted). `--no-code` turns that off.
