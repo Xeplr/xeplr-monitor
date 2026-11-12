@@ -12,8 +12,7 @@ monitor.start({
   secret: process.env.MONITOR_SECRET,
   allow: process.env.MONITOR_ALLOW,
   sudo: process.env.MONITOR_SUDO,
-  port: process.env.MONITOR_PORT,
-  host: process.env.MONITOR_HOST
+  port: process.env.MONITOR_PORT
 }).catch(function(err) {
   console.error('[xeplr-monitor] could not start:', err.message);
   process.exit(1);

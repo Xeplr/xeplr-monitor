@@ -15,7 +15,7 @@ The page itself is [`@xeplr/ui-monitor`](https://github.com/Xeplr/xeplr-ui-monit
 On the servers, every app already runs as a systemd service: `xeplr-bi-api`, `xeplr-bi-auth`, `xeplr-bi-jobs`, and testbi's `xeplr-bi-dev-*`. The monitor starts nothing itself. It asks `systemctl` the same way the deploy does, and reads the journal, where the services' output goes.
 
 ```
-browser ──https──▶ nginx ──▶ xeplr-monitor (127.0.0.1:19400, its own user)
+browser ──https──▶ nginx ──▶ xeplr-monitor (port 19400, its own user)
                                  ├─ systemctl show            status (no sudo)
                                  ├─ sudo -n systemctl start|stop|restart|kill   (sudoers: xeplr-* only)
                                  └─ journalctl -u … -o json [-f]                 (systemd-journal group)
@@ -50,7 +50,6 @@ The page turns these into a short **needs a look** list for a running service: m
 | `MONITOR_SECRET` | **yes** | Signs the sign-in cookie. At least 32 characters (`openssl rand -base64 48`). Changing it signs everyone out. |
 | `MONITOR_ALLOW` | **yes** | Which services may be added and controlled, comma-separated; `*` matches anything: `xeplr-*` or `xeplr-*,postgresql`. Keep sudoers the same. |
 | `MONITOR_PORT` | no | Default 19400. |
-| `MONITOR_HOST` | no | Default `127.0.0.1`, so only nginx on the same machine reaches it. |
 | `MONITOR_SUDO` | no | `actions` (default): start, stop, restart and kill go through `sudo -n`. `all`: reading the journal does too. `none`: nothing does (root, or polkit rights). |
 
 There are no defaults for where data lives. A missing required setting stops the server at startup and names it. `requiredEnv` is exported, so a host can add it to its own `env.required.js`.

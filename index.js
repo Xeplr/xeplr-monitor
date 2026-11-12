@@ -59,8 +59,8 @@ function pageRouter(dir) {
 
 /**
  * Serve it: the API at /api, the page everywhere else. → the http server,
- * once listening. Listens on 127.0.0.1 unless told otherwise: nginx is its
- * front door.
+ * once listening on its port. nginx is its front door, as for every xeplr
+ * service.
  */
 function start(config) {
   config = config || {};
@@ -68,7 +68,6 @@ function start(config) {
   // 0 is a port too (any free one); only a missing value takes the default.
   var port = config.port === undefined || config.port === null || config.port === '' ? 19400 : Number(config.port);
   var built = createApp(port, 'xeplr-monitor', {
-    host: config.host || '127.0.0.1',
     // Its own sign-in: it must work when @xeplr/auth is down. The headers go in
     // front of it, so a refused request carries them too (createApp's
     // `middleware` runs only after the gate).

@@ -104,8 +104,7 @@ test('one address: more room than one email, then locked too', async function() 
   assert.equal((await call('POST', '/login', { email: 'colleague@xeplr.com', password: 'long enough password' })).status, 429, 'for every email');
 });
 
-test('through createApp: 127.0.0.1 only, its headers even on a refusal, no CORS, 404s as { error }', async function() {
-  assert.equal(server.address().address, '127.0.0.1');
+test('through createApp: its headers even on a refusal, no CORS, unknown /api paths gated', async function() {
   var r = await fetch(base + '/services', { headers: { origin: 'https://elsewhere.example' } });
   assert.equal(r.status, 401);
   assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
