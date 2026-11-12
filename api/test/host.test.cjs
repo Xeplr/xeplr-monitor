@@ -42,6 +42,7 @@ test('on this server: the same numbers as free and df', { skip: linux ? false : 
   near(s.memory.buffersBytes + s.memory.cacheBytes, free[5], 'buff/cache');
   assert.ok(s.cpu.cores >= 1 && s.cpu.load.length === 3);
   assert.ok(s.host.uptimeSeconds > 0 && s.host.os && s.host.kernel);
+  s.disks.forEach(function(d) { assert.ok(require('fs').statSync(d.mount).isDirectory(), d.mount + ' is a folder, not a file mounted from a disk'); });
   var root = s.disks.find(function(d) { return d.mount === '/'; });
   if (root) {
     var df = execFileSync('df', ['-B1', '--output=size', '/']).toString().trim().split('\n')[1].trim();

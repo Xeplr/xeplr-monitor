@@ -70,6 +70,9 @@ function disks(mountsText) {
     var device = f[0];
     var mount = f[1].replace(/\\040/g, ' ');
     if (seen.has(device)) return;
+    // A single file mounted from a disk (a container's /etc/resolv.conf) is
+    // not a disk of its own: a disk is mounted on a folder.
+    try { if (!fs.statSync(mount).isDirectory()) return; } catch (e) { return; }
     seen.add(device);
     var s;
     try { s = fs.statfsSync(mount); } catch (e) { return; }
