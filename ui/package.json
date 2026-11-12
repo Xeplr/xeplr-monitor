@@ -13,7 +13,7 @@
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",
     "@xeplr/ui-account": "^1.5.2",
-    "@xeplr/ui-monitor": "^0.2.0",
+    "@xeplr/ui-monitor": "^0.4.1",
     "@xeplr/ui-table": "^1.1.3",
     "@xeplr/ui-utils": "^1.1.8",
     "react": "^19.2.4",

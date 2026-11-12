@@ -1,22 +1,10 @@
 // THE SERVICES THE MONITOR WATCHES — rows of monitor_services, added by hand.
-// A service is only ever controlled once it is on this list, and only if its
-// unit matches MONITOR_ALLOW (e.g. "xeplr-*"): the list is what someone chose
-// to watch, the pattern is what the server owner allows at all. sudoers
-// repeats the pattern, so even a bug here could not reach another unit.
+// Any systemd service on the server can be added; a service is only ever
+// controlled once it is on this list. Who may add or control one is decided
+// by roles (migrations-auth/0006), not by a pattern.
 var { generateId } = require('@xeplr/utils');
 var systemd = require('./systemd');
 var { MonitoredService, MonitorAudit } = require('../models');
-
-var patterns = [];
-
-/** MONITOR_ALLOW, read once at startup. Required (env.required.js). */
-function setAllowed(list) {
-  var p = (Array.isArray(list) ? list : String(list || '').split(',')).map(function(x) { return x.trim(); }).filter(Boolean);
-  if (!p.length) throw new Error('MONITOR_ALLOW is not set: the services the monitor may control, e.g. "xeplr-*" (comma-separated, * matches anything)');
-  patterns = p;
-}
-
-function allowedPatterns() { return patterns.slice(); }
 
 function refuse(message, status) { var e = new Error(message); e.status = status || 400; return e; }
 
@@ -29,10 +17,9 @@ async function get(unit) {
   return s;
 }
 
-/** A unit checked: a proper name, allowed, and known to systemd. → its full name. */
+/** A unit checked: a proper name, and known to systemd. → its full name. */
 async function checked(name) {
   var unit = systemd.unitName(name);
-  if (!systemd.allowed(unit, patterns)) throw refuse(unit + ' is not allowed here. The monitor may control ' + patterns.join(', ') + ' (MONITOR_ALLOW)', 403);
   var st = await systemd.status(unit);
   if (!st.exists) throw refuse('systemd has no service called ' + unit + ' on this server', 404);
   return unit;
@@ -77,4 +64,4 @@ async function recentAudit(limit) {
   return rows.map(function(r) { return { at: new Date(r.recordCreatedDate).toISOString(), email: r.email, ip: r.ip, action: r.action, unit: r.unit, ok: r.ok, error: r.error }; });
 }
 
-module.exports = { setAllowed: setAllowed, allowedPatterns: allowedPatterns, all: all, get: get, add: add, edit: edit, remove: remove, audit: audit, recentAudit: recentAudit };
+module.exports = { all: all, get: get, add: add, edit: edit, remove: remove, audit: audit, recentAudit: recentAudit };

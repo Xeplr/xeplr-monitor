@@ -1,7 +1,18 @@
 {
-  "routes": ["src/App.jsx"],
+  "routes": [
+    "src/App.jsx"
+  ],
   "documents": [],
   "webOnly": [
-    { "path": "/monitor", "menu": "Monitor", "reason": "A page written by hand: services, their processes and live logs are not a form (@xeplr/ui-monitor)." }
+    {
+      "path": "/home",
+      "menu": "Home",
+      "reason": "A page written by hand: the server's memory, CPU and disks are not a form (@xeplr/ui-monitor ServerPage)."
+    },
+    {
+      "path": "/monitor",
+      "menu": "Monitor",
+      "reason": "A page written by hand: services, their processes and live logs are not a form (@xeplr/ui-monitor)."
+    }
   ]
 }

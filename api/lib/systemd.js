@@ -48,14 +48,6 @@ function unitName(name) {
   return /\.(service|socket|timer|target|path|mount)$/.test(n) ? n : n + '.service';
 }
 
-/** Whether a unit matches one of the allowed patterns ("xeplr-*"; * matches anything). */
-function allowed(unit, patterns) {
-  return (patterns || []).some(function(p) {
-    var re = new RegExp('^' + p.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
-    return re.test(unit) || re.test(unit.replace(/\.service$/, ''));
-  });
-}
-
 function run(bin, args, useSudo, limitMs) {
   return new Promise(function(resolve, reject) {
     var file = useSudo ? 'sudo' : bin;
@@ -162,7 +154,7 @@ async function act(unit, action) {
   try {
     // With a control command (MONITOR_CONTROL_COMMAND, installed by the
     // deploy: deploy/control.sh) sudo runs that, which checks the action, the
-    // name and MONITOR_ALLOW itself — sudoers then needs no wildcard.
+    // and the name itself — sudoers then needs no wildcard.
     // Without one (development), systemctl itself.
     if (cfg.control && cfg.sudo !== 'none') await run(cfg.control, [action, unit], true, ACTION_LIMIT_MS);
     else await run(cfg.systemctl, action === 'kill' ? ['kill', '--signal=SIGKILL', unit] : [action, unit], cfg.sudo !== 'none', ACTION_LIMIT_MS);
@@ -328,4 +320,4 @@ function selfUnit() {
   } catch (e) { return null; }
 }
 
-module.exports = { configure: configure, unitName: unitName, allowed: allowed, status: status, act: act, processes: processes, forgetGone: forgetGone, commandsOf: commandsOf, logs: logs, follow: follow, selfUnit: selfUnit, lineOf: lineOf, ACTIONS: ACTIONS, MAX_LINES: MAX_LINES };
+module.exports = { configure: configure, unitName: unitName, status: status, act: act, processes: processes, forgetGone: forgetGone, commandsOf: commandsOf, logs: logs, follow: follow, selfUnit: selfUnit, lineOf: lineOf, ACTIONS: ACTIONS, MAX_LINES: MAX_LINES };

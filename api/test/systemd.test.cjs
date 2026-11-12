@@ -83,14 +83,14 @@ test('a real service: read, followed, restarted, killed, stopped, started', { sk
 });
 
 // deploy/control.sh — the one command sudoers allows — as the deploy installs
-// it (MONITOR_ALLOW and systemctl's path put in), run through sudo: it refuses
-// what it must, and the monitor's actions go through it.
-test('the control command: refuses what it must, and controls an allowed service', { skip: skip || false, timeout: 60000 }, async function() {
+// it (systemctl's path put in), run through sudo: it refuses what it must, and
+// the monitor's actions go through it.
+test('the control command: refuses what it must, and controls a service', { skip: skip || false, timeout: 60000 }, async function() {
   var dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xeplr-monitor-ctl-'));
   var control = path.join(dir, 'xeplr-monitor-control');
   var systemctl = execFileSync('sh', ['-c', 'command -v systemctl']).toString().trim();
   fs.writeFileSync(control, fs.readFileSync(path.join(__dirname, '..', '..', 'deploy', 'control.sh'), 'utf8')
-    .replace('__MONITOR_ALLOW__', 'xeplr-monitortest-*').replace('__SYSTEMCTL__', systemctl), { mode: 0o755 });
+    .replace('__SYSTEMCTL__', systemctl), { mode: 0o755 });
   var code = function(args) {
     try { execFileSync('sudo', ['-n', control].concat(args), { stdio: 'ignore' }); return 0; } catch (e) { return e.status; }
   };
@@ -98,7 +98,6 @@ test('the control command: refuses what it must, and controls an allowed service
   execFileSync('sudo', ['-n', 'tee', '/run/systemd/system/' + unit], { input: '[Service]\nExecStart=/bin/sleep 300\n', stdio: ['pipe', 'ignore', 'inherit'] });
   execFileSync('sudo', ['-n', 'systemctl', 'daemon-reload']);
   try {
-    assert.equal(code(['stop', 'ssh.service']), 77, 'a service MONITOR_ALLOW does not name');
     assert.equal(code(['stop', 'xeplr-monitortest-x;reboot']), 64, 'not a plain name');
     assert.equal(code(['stop', '--now']), 64, 'an option in place of a name');
     assert.equal(code(['enable', unit]), 64, 'not one of the four actions');
@@ -123,14 +122,10 @@ test('the control command: refuses what it must, and controls an allowed service
   }
 });
 
-test('names: checked before they reach systemctl, and the allow-list matched', function() {
+test('names: checked before they reach systemctl', function() {
   assert.equal(systemd.unitName('xeplr-bi-api'), 'xeplr-bi-api.service');
   assert.equal(systemd.unitName('getty@tty1.service'), 'getty@tty1.service');
   ['', 'a b', 'x;reboot', '../etc', '-p'].forEach(function(n) { assert.throws(function() { systemd.unitName(n); }, /is not a service name/, n); });
-  assert.ok(systemd.allowed('xeplr-bi-dev-api.service', ['xeplr-*']));
-  assert.ok(systemd.allowed('postgresql.service', ['xeplr-*', 'postgresql']));
-  assert.ok(!systemd.allowed('sshd.service', ['xeplr-*']));
-  assert.ok(!systemd.allowed('xeplr.service.evil', ['xeplr']), 'a pattern matches the whole name');
   var line = systemd.lineOf({ __REALTIME_TIMESTAMP: '1762871581123456', PRIORITY: '3', _PID: '42', MESSAGE: [104, 105], SYSLOG_IDENTIFIER: 'node', __CURSOR: 'c' });
   assert.deepEqual([line.at, line.level, line.pid, line.message], ['2025-11-11T14:33:01.123Z', 'error', 42, 'hi']);
   assert.deepEqual(systemd.commandsOf('{ path=/usr/bin/node ; argv[]=/usr/bin/node /opt/bi/server.js --port 4000 ; ignore_errors=no ; start_time=[n/a] ; pid=0 }'), [{ path: '/usr/bin/node', command: '/usr/bin/node /opt/bi/server.js --port 4000' }]);

@@ -1,6 +1,7 @@
 // THE MONITOR'S ROUTES — at /api/monitor, behind createApp's auth gate.
 //
-//   GET    /settings                    what may be added (MONITOR_ALLOW), and the API's own unit
+//   GET    /settings                    the API's own unit (which it will not stop or kill)
+//   GET    /host                        the server itself: memory, CPU, disks, uptime (the Home page)
 //   GET    /services                    every watched service with its status and processes now
 //   POST   /services                    { unit, label? } — watch one more
 //   PATCH  /services/:unit              { label?, unit? } — changed in place
@@ -17,11 +18,13 @@ var express = require('express');
 var { requireApi } = require('@xeplr/base-apis');
 var systemd = require('../lib/systemd');
 var services = require('../lib/services');
+var host = require('../lib/host');
 
 // The `apis` rows these routes are checked against — the same names as
 // migrations-auth/0006_monitor.sql. Changing one here means changing it there.
 var API = {
   settings: 'View monitor settings',
+  host: 'View server statistics',
   list: 'List monitored services',
   logs: 'Read service logs',
   live: 'Follow service logs live',
@@ -32,9 +35,7 @@ var API = {
   audit: 'Read the monitor audit log'
 };
 
-// What it may control and how it asks systemd, read once at startup.
-// MONITOR_ALLOW is required (env.required.js); MONITOR_SUDO is optional.
-services.setAllowed(process.env.MONITOR_ALLOW);
+// How it asks systemd, read once at startup.
 // MONITOR_CONTROL_COMMAND: the root-owned command sudoers allows (the deploy
 // installs deploy/control.sh there); unset in development, where systemctl is
 // asked directly.
@@ -76,7 +77,11 @@ function change(action, fn) {
 async function unitOf(req) { return (await services.get(systemd.unitName(req.params.unit))).unit; }
 
 router.get('/settings', requireApi(API.settings), function(req, res) {
-  res.json({ allowed: services.allowedPatterns(), self: systemd.selfUnit() });
+  res.json({ self: systemd.selfUnit() });
+});
+
+router.get('/host', requireApi(API.host), function(req, res) {
+  res.json(host.stats());
 });
 
 router.get('/services', requireApi(API.list), answer(async function() {

@@ -28,8 +28,5 @@ module.exports = [
   // error — the most expensive way for this to go wrong.
   'DB_API',
 
-  // What the monitor may control: systemd services matching these patterns,
-  // comma-separated (* matches anything), e.g. xeplr-*. sudoers repeats it.
-  'MONITOR_ALLOW',
   'XEPLR_MONITOR_CONNECTION',
 ];
