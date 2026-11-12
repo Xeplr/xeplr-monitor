@@ -4,6 +4,9 @@
 # on the server. Safe to run again: it installs a new release beside the old
 # one, keeps the settings (and so every secret and sign-in), and switches over.
 #
+#   XM_UPDATE      1: only install this version and restart — every other value
+#                  is read from the settings the first deploy wrote; nginx and its
+#                  certificate are left alone
 #   XM_TARBALL     the app's source, already copied to the server (deploy --source)
 #   XM_REF         or: the GitHub ref of Xeplr/xeplr-monitor to fetch (main, a tag)
 #   XM_PORT_BASE   ui slot; the sign-in service is +1, the API +2 (19400 → 19401, 19402)
@@ -27,6 +30,22 @@ SHARED=$APP/shared
 ENV_FILE=$SHARED/production.env
 VAR=/var/lib/xeplr-monitor
 USER_NAME=xeplr-monitor
+
+# An update asks nothing: what the first deploy was told is in its settings.
+if [ "${XM_UPDATE:-0}" = 1 ]; then
+  [ -s "$ENV_FILE" ] || stop "xeplr-monitor is not installed here yet: the first deploy needs the full questions (run it without --update)"
+  setting_of() { sed -n "s/^$1=//p" "$ENV_FILE" | tail -1; }
+  XM_ALLOW=$(setting_of MONITOR_ALLOW)
+  XM_PORT_BASE=$(( $(setting_of AUTH_PORT) - 1 ))
+  XM_ADMIN_EMAIL=$(setting_of AUTH_SUPER_ADMIN_EMAIL)
+  XM_REDIS_HOST=$(setting_of REDIS_HOST)
+  XM_REDIS_PORT=$(setting_of REDIS_PORT)
+  # Empty: settings.cjs keeps the database login, the passwords and the
+  # public address it already has; the nginx step below is skipped.
+  XM_DB_HOST= XM_DB_PORT= XM_DB_USER= XM_DB_PASSWORD= XM_REDIS_PASSWORD= XM_ADMIN_PASSWORD= XM_DOMAIN= XM_CERTBOT=0
+  [ -n "$XM_ALLOW" ] && [ -n "$XM_ADMIN_EMAIL" ] || stop "the settings in $ENV_FILE are incomplete: run the full deploy (without --update)"
+  say "Updating: the settings, nginx and its certificate stay as they are"
+fi
 AUTH_PORT=$((XM_PORT_BASE + 1))
 API_PORT=$((XM_PORT_BASE + 2))
 
