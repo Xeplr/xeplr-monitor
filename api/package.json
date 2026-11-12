@@ -1,0 +1,38 @@
+{
+  "name": "@xeplr-monitor/api",
+  "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "xeplr-monitor backend \u2014 @xeplr/base-apis app.",
+  "main": "app.js",
+  "scripts": {
+    "check-env": "dotenv -e development.env -- xeplr-check-env",
+    "setup": "npm run db:create && npm run db:create:api && npm run migrate:auth",
+    "db:encrypt": "xeplr encrypt",
+    "db:create": "dotenv -e development.env -- xeplr-migrate create-db --connectionName auth --connection-env AUTH_DB_CONNECTION_INFO_ENCRYPTED --db-env AUTH_DB_NAME",
+    "db:create:api": "dotenv -e development.env -- xeplr-migrate create-db --connectionName api --connection-env XEPLR_MONITOR_CONNECTION --db-env DB_API",
+    "migrate:auth": "dotenv -e development.env -- xeplr-auth-migrate up --connection-env AUTH_DB_CONNECTION_INFO_ENCRYPTED",
+    "migrate:up": "dotenv -e development.env -- xeplr-migrate up --dir ./migrations --connectionName api --connection-env XEPLR_MONITOR_CONNECTION",
+    "start-auth": "dotenv -e ./development.env -- xeplr-auth-server",
+    "start-api": "node ./bin/www",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "@xeplr/actions": "^2.2.0",
+    "@xeplr/auth": "^1.3.0",
+    "@xeplr/base-apis": "^3.0.4",
+    "@xeplr/db": "^1.1.0",
+    "@xeplr/factory": "^3.0.2",
+    "@xeplr/ui-factory": "^1.8.6",
+    "@xeplr/utils": "^1.0.11",
+    "@xeplr/workflow-api": "^2.1.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.0",
+    "multer": "^2.0.2",
+    "nodemailer": "^10.0.2"
+  },
+  "devDependencies": {
+    "@xeplr/cli": "^0.1.8",
+    "dotenv-cli": "^8.0.0"
+  }
+}

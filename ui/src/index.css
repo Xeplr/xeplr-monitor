@@ -1,0 +1,414 @@
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* The collapsed nav rail's width. It is `position: fixed`, so it sits on top
+     of the page rather than pushing it along — the app has to leave the room
+     itself. Without this the rail covers the first 60px of every screen, which
+     reads as text mysteriously cut off down the left edge rather than as a
+     layout problem. 48px: compact, like VS Code's activity bar — it must
+     match @xeplr/ui-account's collapsed rail. */
+  --app-rail-width: 48px;
+}
+
+/* ON A PHONE (below 640px) the rail becomes a bar across the top — see
+   @xeplr/ui-account's nav.css — so the page gives up its top instead of its
+   left: --xeplr-nav-bar-height, set by that stylesheet. The rest of this
+   file's phone rules are at the bottom. */
+
+body { margin: 0; }
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-left: var(--app-rail-width);   /* room for the fixed rail */
+  box-sizing: border-box;
+
+  /* THE PAGE HAS TO JOIN IN, and this belongs HERE rather than on `body`.
+     The theme wrapper puts its class on an element INSIDE body, so the
+     variables do not exist at body level — setting them there silently
+     resolves to nothing and you get a white page framed by dark chrome.
+     Everything works; it just looks like two products bolted together. */
+  background: var(--xeplr-bg-primary);
+  color: var(--xeplr-text-primary);
+}
+
+.main {
+  flex: 1;
+  padding: 24px 28px;
+  min-width: 0;   /* lets wide tables scroll instead of stretching the page */
+}
+
+/* A readable block for anything the app prints raw. */
+.main pre {
+  background: var(--xeplr-bg-secondary);
+  border: 1px solid var(--xeplr-border-primary);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+
+/* ── the starter welcome screen (src/pages/Home.jsx) ─────────────────────── */
+
+.app-welcome { max-width: 680px; }
+
+.app-welcome-logo { width: 52px; height: 52px; display: block; margin-bottom: 20px; }
+
+.app-welcome h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -0.02em; }
+
+.app-welcome-lead {
+  margin: 0 0 28px;
+  font-size: 16px;
+  color: var(--xeplr-text-muted);
+}
+
+.app-welcome h2 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--xeplr-text-muted);
+  margin: 32px 0 12px;
+}
+
+.app-checks { list-style: none; padding: 0; margin: 0; }
+
+.app-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--xeplr-border-primary);
+  border-radius: 8px;
+  background: var(--xeplr-bg-secondary);
+  font-size: 14px;
+}
+
+.app-check-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--xeplr-text-muted);
+}
+.app-check-dot.is-ok { background: #22c55e; }
+.app-check-dot.is-bad { background: #ef4444; }
+/* Pending pulses, so "still checking" never reads as "finished and fine". */
+.app-check-dot.is-pending { background: #eab308; animation: app-pulse 1s ease-in-out infinite; }
+
+@keyframes app-pulse { 50% { opacity: 0.25; } }
+
+.app-next { margin: 0; padding-left: 20px; font-size: 14px; line-height: 2; }
+
+.app-next code {
+  background: var(--xeplr-bg-secondary);
+  border: 1px solid var(--xeplr-border-primary);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+
+.app-welcome-foot {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--xeplr-border-primary);
+  font-size: 13px;
+  color: var(--xeplr-text-muted);
+}
+
+/* ── pages with a form and a list (src/pages/Tasks.jsx) ──────────────────── */
+
+.app-page { max-width: 860px; }
+.app-page h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
+.app-page-lead { margin: 0 0 24px; color: var(--xeplr-text-muted); font-size: 14px; }
+
+.app-error {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  font-size: 14px;
+}
+
+.app-form {
+  border: 1px solid var(--xeplr-border-primary);
+  background: var(--xeplr-bg-secondary);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 28px;
+}
+
+.app-field { display: block; margin-bottom: 14px; }
+.app-field > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-field input,
+.app-field textarea,
+.app-field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--xeplr-border-primary);
+  background: var(--xeplr-bg-primary);
+  color: var(--xeplr-text-primary);
+  font: inherit;
+  font-size: 14px;
+}
+.app-field input:focus,
+.app-field textarea:focus,
+.app-field select:focus { outline: 2px solid #6366f1; outline-offset: -1px; }
+
+.app-field-row { display: flex; gap: 14px; }
+.app-field-row .app-field { flex: 1; }
+
+.app-form-actions { display: flex; gap: 10px; margin-top: 4px; }
+
+.app-btn {
+  padding: 9px 16px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: #6366f1;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.app-btn:disabled { opacity: 0.55; cursor: default; }
+.app-btn-quiet {
+  background: transparent;
+  border-color: var(--xeplr-border-primary);
+  color: var(--xeplr-text-primary);
+}
+
+.app-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.app-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--xeplr-text-muted);
+  border-bottom: 1px solid var(--xeplr-border-primary);
+}
+.app-table td { padding: 12px; border-bottom: 1px solid var(--xeplr-border-primary); vertical-align: top; }
+.app-table tr.is-editing { background: var(--xeplr-bg-secondary); }
+.app-sub { color: var(--xeplr-text-muted); font-size: 13px; margin-top: 3px; }
+.app-empty { color: var(--xeplr-text-muted); text-align: center; padding: 28px; }
+.app-row-actions { text-align: right; white-space: nowrap; }
+.app-row-actions .app-btn { padding: 5px 10px; font-size: 13px; margin-left: 6px; }
+
+.app-tag {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--xeplr-border-primary);
+  text-transform: capitalize;
+}
+.app-tag.is-done { border-color: #22c55e; color: #22c55e; }
+.app-tag.is-in_progress { border-color: #eab308; color: #eab308; }
+
+/* ── the sample page's instruction panel ─────────────────────────────────── */
+
+/* Wider than a normal page, because it carries a column of explanation the
+   real pages you write will not have. */
+.app-page-split { display: flex; gap: 32px; align-items: flex-start; max-width: 1180px; }
+.app-page-main { flex: 1; min-width: 0; }
+
+.app-help {
+  flex: 0 0 330px;
+  border: 1px solid var(--xeplr-border-primary);
+  border-radius: 10px;
+  padding: 20px;
+  background: var(--xeplr-bg-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+  position: sticky;
+  top: 24px;
+}
+
+.app-help-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.app-help h2 { font-size: 16px; margin: 0 0 8px; }
+.app-help h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--xeplr-text-muted);
+  margin: 22px 0 10px;
+}
+.app-help p { margin: 0; color: var(--xeplr-text-muted); }
+
+.app-help code {
+  display: inline-block;
+  background: var(--xeplr-bg-primary);
+  border: 1px solid var(--xeplr-border-primary);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.app-help-steps { margin: 0; padding-left: 18px; }
+.app-help-steps li { margin-bottom: 14px; }
+.app-help-steps strong { display: block; margin-bottom: 3px; }
+.app-help-steps > li > code { margin-bottom: 4px; }
+.app-help-steps span { display: block; color: var(--xeplr-text-muted); }
+
+.app-help-notes { margin: 0; padding-left: 18px; color: var(--xeplr-text-muted); }
+.app-help-notes li { margin-bottom: 10px; }
+
+/* One column when there is not room for two — the explanation drops below the
+   form rather than squeezing it. */
+@media (max-width: 1080px) {
+  .app-page-split { display: block; }
+  .app-help { position: static; margin-top: 28px; width: auto; }
+}
+
+/* ── Forms ────────────────────────────────────────────────────────────── */
+/* ── Configure UI ─────────────────────────────────────────────────────── */
+.app-tabs { display: flex; gap: 4px; margin: 4px 0 18px; border-bottom: 1px solid var(--xeplr-border-primary); }
+
+.app-tab {
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--xeplr-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-tab.is-active { color: var(--xeplr-text-primary); border-bottom-color: var(--xeplr-accent); }
+
+.app-forms-new { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; max-width: 820px; margin: 0 0 18px; }
+
+.app-forms-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 220px; font-size: 12px; color: var(--xeplr-text-muted); }
+
+.app-menu-label,
+.app-forms-new input {
+  flex: 1;
+  padding: 9px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--xeplr-input-border);
+  background: var(--xeplr-input-bg);
+  color: var(--xeplr-input-text);
+  font: inherit;
+}
+
+.app-forms-pending { color: var(--xeplr-warning); }
+
+.app-notice {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--xeplr-success-border);
+  background: var(--xeplr-success-bg);
+  color: var(--xeplr-success);
+}
+
+/* ── Designer ─────────────────────────────────────────────────────────── */
+/* The builder fills the space it is given, so it needs a height: the page
+   below the top bar, less .main's padding. */
+.app-designer {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 110px);
+  min-height: 520px;
+  gap: 10px;
+}
+
+.app-designer-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.app-designer-title { font-weight: 600; margin-right: 10px; }
+
+.app-designer-bar .is-active { background: var(--xeplr-bg-secondary); }
+
+.app-designer-canvas {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--xeplr-border-primary);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.app-help-prompt {
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  margin: 8px 0;
+  border-radius: 6px;
+  background: var(--xeplr-bg-tertiary);
+  border: 1px solid var(--xeplr-border-primary);
+}
+
+.app-menu-hidden td { opacity: 0.5; }
+/* A menu item whose page is hand-written for the browser (ui/pages.json): it
+   will not be in a phone app. The reason is its tooltip. */
+.app-web-only {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+  font-size: 11px; font-weight: 600; cursor: help;
+  color: var(--xeplr-warning, #a86a00); background: color-mix(in srgb, var(--xeplr-warning, #a86a00) 14%, transparent);
+}
+
+.app-menu-shown { display: inline-flex; gap: 6px; align-items: center; }
+
+.app-menu-settings .app-table { margin-bottom: 14px; }
+
+/* ── Flows, before Workflow is connected (src/pages/Flows.jsx) ─────────────── */
+.app-connect {
+  max-width: 720px;
+  padding: 22px 24px;
+  border: 1px solid var(--xeplr-border-primary);
+  border-radius: 10px;
+  background: var(--xeplr-bg-tertiary);
+  line-height: 1.55;
+}
+.app-connect h2 { margin: 0 0 8px; font-size: 18px; }
+.app-connect p { margin: 0 0 14px; }
+.app-connect-steps { margin: 0 0 14px; padding-left: 20px; }
+.app-connect-steps li { margin-bottom: 14px; }
+.app-connect code { font-size: 12.5px; padding: 1px 5px; border-radius: 4px; background: var(--xeplr-bg-secondary); border: 1px solid var(--xeplr-border-primary); }
+.app-connect pre { margin: 6px 0 0; font-size: 12.5px; }
+
+/* ── on a phone ──────────────────────────────────────────────────────────
+   Forms and lists made in the designer stack themselves (@xeplr/ui-factory),
+   and @xeplr/ui-table keeps its own rows reachable. What is left is this
+   app's own chrome: room for the top bar instead of the rail, tighter page
+   padding, fields one per row, tables that scroll inside their own box
+   rather than widening the page, and buttons a thumb can hit. */
+@media (max-width: 640px) {
+  .app { padding-left: 0; padding-top: var(--xeplr-nav-bar-height, 52px); }
+  .main { padding: 16px 12px; }
+  .app-page h1 { font-size: 22px; }
+  .app-welcome h1 { font-size: 24px; }
+
+  .app-field-row { flex-direction: column; gap: 0; }
+  .app-field input, .app-field textarea, .app-field select { font-size: 16px; min-height: 44px; }
+  .app-forms-field { min-width: 0; flex-basis: 100%; }
+  .app-menu-label, .app-forms-new input { font-size: 16px; min-height: 44px; box-sizing: border-box; }
+  .app-btn { min-height: 44px; }
+  .app-row-actions .app-btn { min-height: 40px; padding: 8px 12px; }
+
+  .app-table { display: block; overflow-x: auto; }
+  .app-tabs { overflow-x: auto; }
+  .app-tab { white-space: nowrap; min-height: 44px; }
+  .app-help { padding: 16px; }
+  .app-connect { padding: 16px; }
+}

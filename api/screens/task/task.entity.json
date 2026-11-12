@@ -1,0 +1,91 @@
+{
+  "entity": "task",
+  "columns": 2,
+  "openIn": "page",
+  "fields": [
+    {
+      "type": "stepper",
+      "steps": [
+        "The task",
+        "Planning",
+        "Attachment"
+      ]
+    },
+    {
+      "label": "Title",
+      "step": "The task",
+      "required": true,
+      "validation": {
+        "maxLength": 200
+      },
+      "width": "full"
+    },
+    {
+      "label": "Status",
+      "type": "dropdown",
+      "options": [
+        "To do",
+        "In progress",
+        "Done"
+      ],
+      "required": true
+    },
+    {
+      "label": "Priority",
+      "type": "radio",
+      "options": [
+        "Low",
+        "Normal",
+        "High"
+      ],
+      "layout": "horizontal"
+    },
+    {
+      "label": "Description",
+      "type": "textarea",
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "label": "Due date",
+      "type": "date",
+      "step": "Planning"
+    },
+    {
+      "label": "Remind at",
+      "type": "datetime"
+    },
+    {
+      "label": "Tags",
+      "type": "multiselect",
+      "options": [
+        "Bug",
+        "Feature",
+        "Chore",
+        "Customer"
+      ],
+      "layout": "horizontal",
+      "width": "full"
+    },
+    {
+      "label": "Blocked",
+      "type": "checkbox"
+    },
+    {
+      "label": "Attachment",
+      "type": "file",
+      "step": "Attachment",
+      "accept": ".pdf,.png,.jpg,.jpeg,.docx,.xlsx",
+      "maxSize": 10,
+      "width": "full"
+    }
+  ],
+  "listColumns": [
+    "title",
+    "status",
+    "priority",
+    "dueDate",
+    "tags"
+  ]
+}

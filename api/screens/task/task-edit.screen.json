@@ -1,0 +1,276 @@
+{
+  "kind": "xeplr-screen",
+  "version": 1,
+  "id": "task_edit",
+  "name": "Add / edit task",
+  "units": "fraction",
+  "aspect": 1,
+  "width": 800,
+  "nodes": [
+    {
+      "id": "label",
+      "type": "label",
+      "x": 0.04,
+      "y": 0.04,
+      "w": 0.92,
+      "h": 0.07,
+      "z": 1,
+      "props": {
+        "text": "Add / edit task",
+        "variant": "heading"
+      }
+    },
+    {
+      "id": "stepper",
+      "type": "stepper",
+      "x": 0.04,
+      "y": 0.15,
+      "w": 0.92,
+      "h": 0.09,
+      "z": 2,
+      "props": {
+        "steps": [
+          {
+            "key": "the_task",
+            "label": "The task"
+          },
+          {
+            "key": "planning",
+            "label": "Planning"
+          },
+          {
+            "key": "attachment",
+            "label": "Attachment"
+          }
+        ],
+        "showNumbers": true
+      }
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "x": 0.04,
+      "y": 0.28,
+      "w": 0.92,
+      "h": 0.08,
+      "z": 3,
+      "props": {
+        "label": "Title",
+        "required": true,
+        "validation": {
+          "maxLength": 200
+        },
+        "name": "title"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 0
+      }
+    },
+    {
+      "id": "status",
+      "type": "dropdown",
+      "x": 0.04,
+      "y": 0.4,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 4,
+      "props": {
+        "label": "Status",
+        "placeholder": "Select\u2026",
+        "data": {
+          "source": "static",
+          "options": [
+            {
+              "id": "to_do",
+              "name": "To do"
+            },
+            {
+              "id": "in_progress",
+              "name": "In progress"
+            },
+            {
+              "id": "done",
+              "name": "Done"
+            }
+          ]
+        },
+        "required": true,
+        "name": "status"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 0
+      }
+    },
+    {
+      "id": "priority",
+      "type": "radio",
+      "x": 0.5125,
+      "y": 0.4,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 5,
+      "props": {
+        "label": "Priority",
+        "data": {
+          "source": "static",
+          "options": [
+            {
+              "id": "low",
+              "name": "Low"
+            },
+            {
+              "id": "normal",
+              "name": "Normal"
+            },
+            {
+              "id": "high",
+              "name": "High"
+            }
+          ]
+        },
+        "layout": "horizontal",
+        "name": "priority"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 0
+      }
+    },
+    {
+      "id": "description",
+      "type": "textarea",
+      "x": 0.04,
+      "y": 0.52,
+      "w": 0.92,
+      "h": 0.18,
+      "z": 6,
+      "props": {
+        "label": "Description",
+        "validation": {
+          "maxLength": 1000
+        },
+        "name": "description"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 0
+      }
+    },
+    {
+      "id": "dueDate",
+      "type": "date",
+      "x": 0.04,
+      "y": 0.28,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 7,
+      "props": {
+        "label": "Due date",
+        "name": "dueDate"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 1
+      }
+    },
+    {
+      "id": "remindAt",
+      "type": "datetime",
+      "x": 0.5125,
+      "y": 0.28,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 8,
+      "props": {
+        "label": "Remind at",
+        "name": "remindAt"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 1
+      }
+    },
+    {
+      "id": "tags",
+      "type": "multiselect",
+      "x": 0.04,
+      "y": 0.4,
+      "w": 0.92,
+      "h": 0.065,
+      "z": 9,
+      "props": {
+        "label": "Tags",
+        "data": {
+          "source": "static",
+          "options": [
+            {
+              "id": "bug",
+              "name": "Bug"
+            },
+            {
+              "id": "feature",
+              "name": "Feature"
+            },
+            {
+              "id": "chore",
+              "name": "Chore"
+            },
+            {
+              "id": "customer",
+              "name": "Customer"
+            }
+          ]
+        },
+        "layout": "horizontal",
+        "name": "tags"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 1
+      }
+    },
+    {
+      "id": "blocked",
+      "type": "checkbox",
+      "x": 0.04,
+      "y": 0.505,
+      "w": 0.4475,
+      "h": 0.05,
+      "z": 10,
+      "props": {
+        "label": "Blocked",
+        "default": false,
+        "name": "blocked"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 1
+      }
+    },
+    {
+      "id": "attachment",
+      "type": "file",
+      "x": 0.04,
+      "y": 0.28,
+      "w": 0.92,
+      "h": 0.1,
+      "z": 11,
+      "props": {
+        "label": "Attachment",
+        "accept": ".pdf,.png,.jpg,.jpeg,.docx,.xlsx",
+        "maxSize": 10,
+        "name": "attachment"
+      },
+      "step": {
+        "of": "stepper",
+        "index": 2
+      }
+    }
+  ],
+  "source": "tasks",
+  "events": {
+    "beforeSave": "tidyTaskTitle"
+  }
+}

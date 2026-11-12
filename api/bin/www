@@ -1,0 +1,98 @@
+#!/usr/bin/env node
+
+require('dotenv').config({ path: require('path').join(__dirname, '..', (process.env.NODE_ENV || 'development') + '.env') });
+
+// ── the database connection, checked first and by name ──────────────────
+//
+// BEFORE the general check, because this one has a fix that nobody can guess
+// from a variable name. The generic check can only say "this is missing";
+// these two settings hold an ENCRYPTED value that has to be produced by a
+// command, so a bare name sends somebody looking for a password to type into
+// a field that will not accept one.
+var CONNECTION_SETTINGS = ['XEPLR_MONITOR_CONNECTION', 'AUTH_DB_CONNECTION_INFO_ENCRYPTED'];
+var blank = CONNECTION_SETTINGS.filter(function (name) { return !process.env[name]; });
+
+if (blank.length) {
+  console.error('\n[api] No database connection.\n');
+  console.error('  ' + blank.join(' and '));
+  console.error('  ' + (blank.length > 1 ? 'are' : 'is') + ' blank in development.env.\n');
+  console.error('  These hold your database host, port, user and password,');
+  console.error('  encrypted together into one value. To fill them in:\n');
+  console.error('    npm run db:encrypt\n');
+  console.error('  It asks for the details and writes both settings for you.');
+  console.error('  Non-interactively:\n');
+  console.error('    npm run db:encrypt -- --host localhost --port 5432 \\');
+  console.error('      --user postgres --password \'<yours>\' --write\n');
+  process.exit(1);
+}
+
+// Fail fast on the rest — shared check from @xeplr/base-apis.
+require('@xeplr/base-apis').checkEnv(require('../env.required.js'), { appName: 'api' });
+
+var path = require('path');
+var { resolveConfig } = require('@xeplr/db');
+var { up } = require('@xeplr/db').sqlMigrator;
+var factory = require('@xeplr/factory');
+// This app's functions — what screens' events and flows' "let a function
+// decide" pick by name. Registered before anything can publish a screen that
+// names one.
+require('../functions');
+var screens = require('../screens');
+
+async function start() {
+  // WHICH PRODUCT THIS IS, for every file it keeps: each company's files live
+  // in <XEPLR_DATA_DIR>/xeplr-monitor/<company>/… and nowhere else. Fixed here, at
+  // boot — never from a request.
+  require('@xeplr/db').registerApplication('xeplr-monitor');
+
+  // Name the connection before anything uses it — the migrator resolves by
+  // name from a registry that getConnection does not populate.
+  await resolveConfig('api', process.env.XEPLR_MONITOR_CONNECTION);
+
+  // Migrations run ON BOOT, so starting the API is the only thing anyone has
+  // to remember. Already-applied ones are skipped.
+  //
+  // The screens' own table (factory_screens) first, then this app's.
+  var result = await up({
+    db: process.env.DB_API,
+    dir: factory.migrationsDir,
+    extDir: path.join(__dirname, '..', 'migrations'),
+    connectionName: 'api'
+  });
+  console.log(result.migrations.length
+    ? '[api] ran ' + result.migrations.length + ' migrations'
+    : '[api] migrations up to date');
+
+  // AWAITED before the app is built: a model handed to genericRoute at build
+  // time has no connection at all until this has finished.
+  var knex = await require('../db/setup');
+
+  // The screens and their models. A malformed model stops startup here,
+  // rather than silently never running. What people attach through a form's
+  // file field goes in the tenant's own folder under XEPLR_DATA_DIR
+  // (screens/); nothing is served from it — a file comes back only through
+  // the factory's own route, which checks the caller the way reading a record
+  // does.
+  await factory.init({
+    knex: knex,
+    models: screens.models
+  });
+
+  // Screens never published yet are published now, creating their tables.
+  // Ones already published are left alone — Configure UI → Forms owns them.
+  var published = await factory.publishScreens(screens.documents);
+  if (published.published.length) console.log('[api] published screens: ' + published.published.join(', '));
+
+  // FLOWS — @xeplr/workflow-api, inside this API, in a database of its own
+  // (DB_WORKFLOW — created and migrated on first start). It follows this
+  // app's tenancy and creates no companies or workspaces of its own.
+  var buildApp = require('../app');
+  require('../routes/flows').mount(await require('../workflow')(buildApp.memberGate));
+
+  buildApp();
+}
+
+start().catch(function(err) {
+  console.error('[api] startup failed:', err.stack || err.message);
+  process.exit(1);
+});
