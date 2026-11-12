@@ -1,6 +1,6 @@
 {
   "name": "@xeplr/monitor",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "See and control a server's services: status, start, stop, restart, kill, and their logs live. Its own sign-in, no database",
   "main": "index.js",
   "files": [
