@@ -1,13 +1,13 @@
 # xeplr-monitor
 
-See and control a server's services from a web page: whether each one is running and how it is doing (memory against its limit, CPU, threads, every process of it, restarts, why it last stopped, what command it runs), start, stop, restart or kill it, and read its log, live or for a time range, with a search box.
+See a server and control its services from a web page. **Home** shows the machine itself: memory in GB (total, used, cache & buffers, free, available, swap, and a bar of how it divides up), CPU (in use, cores, load), every disk (used and free, a bar each), uptime, OS and kernel, and what needs a look. **Monitor** shows each service: whether each one is running and how it is doing (memory against its limit, CPU, threads, every process of it, restarts, why it last stopped, what command it runs), start, stop, restart or kill it, and read its log, live or for a time range, with a search box.
 
 It is a xeplr app, made with [`@xeplr/cli`](https://www.npmjs.com/package/@xeplr/cli): sign-in, users, roles and the permission catalog are [`@xeplr/auth`](https://www.npmjs.com/package/@xeplr/auth) with its own database; the monitor's own tables are in a second database through [`@xeplr/db`](https://www.npmjs.com/package/@xeplr/db); the page is [`@xeplr/ui-monitor`](https://www.npmjs.com/package/@xeplr/ui-monitor) inside a [`@xeplr/ui-account`](https://www.npmjs.com/package/@xeplr/ui-account) shell.
 
 ```
 xeplr-monitor/
 ├─ api/        the API (routes/monitor.js) and the sign-in service      → api/README.md
-├─ ui/         the React app: the Monitor page                          → ui/README.md
+├─ ui/         the React app: the Home and Monitor pages                → ui/README.md
 ├─ deploy/     deploy.js (run on your laptop) and install.sh (run on the server)
 └─ CLAUDE.md   how to change this app
 ```
@@ -28,7 +28,7 @@ browser ──https──▶ nginx ─┬─ /auth/api/ ─▶ xeplr-monitor-aut
                           └─ /          ─▶ ui/dist (the page)
 ```
 
-- A service is controlled only once someone has **added it** (a row in `monitor_services`) and only if its name matches **`MONITOR_ALLOW`** (e.g. `xeplr-*`). **sudoers allows one command and nothing else**: `/usr/local/libexec/xeplr-monitor-control` (`deploy/control.sh`, root-owned), which takes exactly an action of the four and one plain service name, checks the name against `MONITOR_ALLOW` itself, and only then runs `systemctl`. No wildcard in sudoers: newer sudo (`sudo-rs`, Ubuntu's default) refuses one in command arguments, and in classic sudo a `*` also matched spaces.
+- **Any systemd service on the server** can be added (a row in `monitor_services`) and, once added, controlled. **Who may is decided by roles** (below), not by a pattern: give the control group only to people trusted with every service, `sshd` and Postgres included. **sudoers allows one command and nothing else**: `/usr/local/libexec/xeplr-monitor-control` (`deploy/control.sh`, root-owned), which takes exactly an action of the four and one plain service name and only then runs `systemctl`. No wildcard in sudoers: newer sudo (`sudo-rs`, Ubuntu's default) refuses one in command arguments, and in classic sudo a `*` also matched spaces.
 - Names are checked (`[A-Za-z0-9@._:-]`) before they reach a command. No shell is ever used.
 - **Stop and kill refuse the monitor's own API service**, which it finds from its cgroup. Restart is allowed.
 - A live log is one `journalctl -f` per open log, ended when the page closes it. At most 10 per person.
@@ -40,7 +40,7 @@ Each route checks its own permission (`requireApi` from `@xeplr/base-apis`) agai
 
 | Group | Routes | Roles |
 |---|---|---|
-| `monitor:view` | settings, the services with their status and processes, logs, live logs | Super Admin, CompanyAdmin, Admin, Editor, Creator, Viewer |
+| `monitor:view` | Home (the server itself), settings, the services with their status and processes, logs, live logs | Super Admin, CompanyAdmin, Admin, Editor, Creator, Viewer |
 | `monitor:control` | start, stop, restart, kill | Super Admin, CompanyAdmin, Admin, Editor |
 | `monitor:manage` | add, edit, remove a watched service | Super Admin, CompanyAdmin, Admin |
 | `monitor:audit` | the audit log | Super Admin, CompanyAdmin, Admin |
@@ -73,7 +73,7 @@ node deploy/deploy.js --source .                   # from a checkout: its commit
 It asks for what it needs as it goes and stores nothing — not in this public repository, not on your laptop:
 
 - **The server:** host (or a `~/.ssh/config` name), SSH login, port, key file. The same SSH access BI's deploy uses; the login needs **passwordless sudo**.
-- **The monitor:** which version, its ports (19400: sign-in on 19401, the API on 19402), which services it may control (`MONITOR_ALLOW`).
+- **The monitor:** which version, and its ports (19400: sign-in on 19401, the API on 19402).
 - **Postgres and Redis** it uses: host, port, user, and the passwords (hidden). The Postgres user must be allowed to create databases. On a re-deploy, an empty database host keeps the login set before.
 - **The Super Admin:** email and password (hidden, twice; empty keeps the one set before). More people are added in the app.
 - **Its web address** for nginx (optional), with an https certificate from certbot.
@@ -84,7 +84,7 @@ Then it shows what it will do, asks to confirm, and runs `deploy/install.sh` on 
 2. puts the release in `/opt/xeplr-monitor/releases/<time>`: the source (fetched from GitHub, or sent from your checkout), `npm ci` in `api/` and `ui/`, and the page built;
 3. writes `/opt/xeplr-monitor/shared/production.env` (`deploy/settings.cjs`, 640): **`ENCRYPTION_KEY` and `AUTH_JWT_SECRET` are made on the server the first time and kept on every later deploy**, so nobody is signed out; the database login is encrypted with `@xeplr/utils`;
 4. creates the two databases if missing and runs the sign-in migrations (users, roles, the monitor's permissions);
-5. installs the control command with `MONITOR_ALLOW` in it and writes `/etc/sudoers.d/xeplr-monitor` naming that command alone (checked with `visudo` first), then checks the monitor's user can ask systemd (D-Bus);
+5. installs the control command and writes `/etc/sudoers.d/xeplr-monitor` naming that command alone (checked with `visudo` first), then checks the monitor's user can ask systemd (D-Bus);
 6. switches `/opt/xeplr-monitor/current` to the new release and (re)starts `xeplr-monitor-auth` and `xeplr-monitor-api`, checking both answer — or shows their last log lines;
 7. keeps the newest three releases;
 8. with a web address: writes the nginx site, checks it with `nginx -t`, reloads, and runs certbot when asked.
@@ -95,7 +95,7 @@ Then it shows what it will do, asks to confirm, and runs `deploy/install.sh` on 
 npx -y github:Xeplr/xeplr-monitor#main --update --host <server> --user <login> --key <key file>
 ```
 
-Only the server. The version is `--ref` (default `main`; a tag or commit hash for a particular one), or `--source <checkout>` for your committed HEAD. Everything else is read on the server from the settings the first deploy wrote, which are kept as they are, and **nginx and its certificate are left alone**. It installs the new release, runs any new migrations, and restarts the two services, checking both answer. It asks nothing and does not stop to confirm. Before a first deploy it refuses and says so. To change an answer (a password, `MONITOR_ALLOW`, the address), run the full deploy instead.
+Only the server. The version is `--ref` (default `main`; a tag or commit hash for a particular one), or `--source <checkout>` for your committed HEAD. Everything else is read on the server from the settings the first deploy wrote, which are kept as they are, and **nginx and its certificate are left alone**. It installs the new release, runs any new migrations, and restarts the two services, checking both answer. It asks nothing and does not stop to confirm. Before a first deploy it refuses and says so. To change an answer (a password, the address), run the full deploy instead.
 
 ### Every answer as an argument
 
@@ -127,7 +127,7 @@ cd api && npm test
 ```
 
 - `test/apiRoleMappings.test.cjs` — the auth catalog built from `migrations-auth`: every route `routes/monitor.js` checks has its `apis` row, every row a group, every group a role besides Super Admin, and the Monitor menu row is the key the side rail uses.
-- `test/systemd.test.cjs` — `lib/systemd` against a real systemd: a small unit written into `/run/systemd/system`, then read (what runs it, memory against its limit, CPU %, its processes), followed, searched, restarted, killed, stopped and started; and `deploy/control.sh` through sudo — refusing a service `MONITOR_ALLOW` does not name, a name that is not plain, an option, another action, a second name — then starting, restarting, killing and stopping an allowed one. Needs Linux with systemd and passwordless sudo — GitHub's ubuntu runners have both, so CI runs it; elsewhere it is skipped and says why.
+- `test/systemd.test.cjs` — `lib/systemd` against a real systemd: a small unit written into `/run/systemd/system`, then read (what runs it, memory against its limit, CPU %, its processes), followed, searched, restarted, killed, stopped and started; and `deploy/control.sh` through sudo — refusing a name that is not plain, an option, another action, a second name — then starting, restarting, killing and stopping a service; and `test/host.test.cjs` — the Home page's numbers: memory the way `free` counts it, CPU use from two readings, and on Linux the same figures as `free -b` and `df` on that machine. Needs Linux with systemd and passwordless sudo — GitHub's ubuntu runners have both, so CI runs it; elsewhere it is skipped and says why.
 
 **systemd 255** (Ubuntu 24.04) kills a service and then reports it could not signal its "auxiliary processes", even when it has none. A kill is treated as done when the service really went down.
 
@@ -136,7 +136,7 @@ cd api && npm test
 | Rule | Why |
 |---|---|
 | Every route checks its own permission, and has its `apis` row, group and role grants in `migrations-auth`, in the same change. | The catalog is the only place that says who can reach a URL. |
-| The control command checks `MONITOR_ALLOW` again, as root; sudoers allows only it. | Even a bug in the API cannot reach another unit. |
+| sudoers allows one command, which takes one action and one plain name. | No wildcard, no shell, nothing else run as root. |
 | The monitor's tables are real tables (`monitor_services`, `monitor_audit`). | Who watched what and who did what are queries. |
 | No setting for where data lives is defaulted; folders are absolute. | A wrong-but-present value reads as empty data, not as an error. |
 | **`REDIS_PREFIX`** is `xeplr-monitor:`. | Apps sharing a Redis would otherwise serve each other's sessions. |

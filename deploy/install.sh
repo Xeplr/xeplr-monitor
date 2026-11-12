@@ -10,7 +10,6 @@
 #   XM_TARBALL     the app's source, already copied to the server (deploy --source)
 #   XM_REF         or: the GitHub ref of Xeplr/xeplr-monitor to fetch (main, a tag)
 #   XM_PORT_BASE   ui slot; the sign-in service is +1, the API +2 (19400 → 19401, 19402)
-#   XM_ALLOW       MONITOR_ALLOW: the services it may control, comma-separated
 #   XM_DB_HOST, XM_DB_PORT, XM_DB_USER, XM_DB_PASSWORD
 #                  the Postgres it uses (a user that may create databases);
 #                  all empty keeps the connection a previous deploy wrote
@@ -35,7 +34,6 @@ USER_NAME=xeplr-monitor
 if [ "${XM_UPDATE:-0}" = 1 ]; then
   [ -s "$ENV_FILE" ] || stop "xeplr-monitor is not installed here yet: the first deploy needs the full questions (run it without --update)"
   setting_of() { sed -n "s/^$1=//p" "$ENV_FILE" | tail -1; }
-  XM_ALLOW=$(setting_of MONITOR_ALLOW)
   XM_PORT_BASE=$(( $(setting_of AUTH_PORT) - 1 ))
   XM_ADMIN_EMAIL=$(setting_of AUTH_SUPER_ADMIN_EMAIL)
   XM_REDIS_HOST=$(setting_of REDIS_HOST)
@@ -43,7 +41,7 @@ if [ "${XM_UPDATE:-0}" = 1 ]; then
   # Empty: settings.cjs keeps the database login, the passwords and the
   # public address it already has; the nginx step below is skipped.
   XM_DB_HOST= XM_DB_PORT= XM_DB_USER= XM_DB_PASSWORD= XM_REDIS_PASSWORD= XM_ADMIN_PASSWORD= XM_DOMAIN= XM_CERTBOT=0
-  [ -n "$XM_ALLOW" ] && [ -n "$XM_ADMIN_EMAIL" ] || stop "the settings in $ENV_FILE are incomplete: run the full deploy (without --update)"
+  [ -n "$XM_ADMIN_EMAIL" ] || stop "the settings in $ENV_FILE are incomplete: run the full deploy (without --update)"
   say "Updating: the settings, nginx and its certificate stay as they are"
 fi
 AUTH_PORT=$((XM_PORT_BASE + 1))
@@ -87,7 +85,7 @@ chown -R "$USER_NAME:$USER_NAME" "$REL"
 touch "$ENV_FILE"
 # The answers go to this one process only, not to every command after it.
 env XM_ENV_FILE="$ENV_FILE" XM_AUTH_PORT="$AUTH_PORT" XM_API_PORT="$API_PORT" XM_VAR="$VAR" \
-  XM_ALLOW="$XM_ALLOW" XM_DOMAIN="$XM_DOMAIN" XM_CERTBOT="$XM_CERTBOT" \
+  XM_DOMAIN="$XM_DOMAIN" XM_CERTBOT="$XM_CERTBOT" \
   XM_DB_HOST="$XM_DB_HOST" XM_DB_PORT="$XM_DB_PORT" XM_DB_USER="$XM_DB_USER" XM_DB_PASSWORD="$XM_DB_PASSWORD" \
   XM_REDIS_HOST="$XM_REDIS_HOST" XM_REDIS_PORT="$XM_REDIS_PORT" XM_REDIS_PASSWORD="$XM_REDIS_PASSWORD" \
   XM_ADMIN_EMAIL="$XM_ADMIN_EMAIL" XM_ADMIN_PASSWORD="$XM_ADMIN_PASSWORD" \
@@ -104,17 +102,17 @@ run_api node_modules/.bin/xeplr-migrate create-db --connectionName api --connect
 run_api node_modules/.bin/xeplr-auth-migrate up --connection-env AUTH_DB_CONNECTION_INFO_ENCRYPTED >/dev/null \
   || stop "the sign-in migrations failed"
 
-# ── the one command sudoers allows: deploy/control.sh, with MONITOR_ALLOW in it
-# It checks the action, the name and the pattern itself, so sudoers names the
-# command alone — no wildcard, which newer sudo (sudo-rs) refuses anyway.
+# ── the one command sudoers allows: deploy/control.sh
+# It checks the action and the name itself, so sudoers names the command
+# alone — no wildcard, which newer sudo (sudo-rs) refuses anyway.
 CONTROL=/usr/local/libexec/xeplr-monitor-control
 mkdir -p /usr/local/libexec
-sed -e "s|__MONITOR_ALLOW__|$XM_ALLOW|" -e "s|__SYSTEMCTL__|$SYSTEMCTL|" "$REL/deploy/control.sh" > "$CONTROL.new"
+sed -e "s|__SYSTEMCTL__|$SYSTEMCTL|" "$REL/deploy/control.sh" > "$CONTROL.new"
 chown root:root "$CONTROL.new" && chmod 755 "$CONTROL.new" && mv -f "$CONTROL.new" "$CONTROL"
 SUDOERS_TMP=$(mktemp)
 {
   echo "# Made by xeplr-monitor's deploy. Changed by the next deploy."
-  echo "# $CONTROL checks the action, the service name and MONITOR_ALLOW=$XM_ALLOW."
+  echo "# $CONTROL checks the action and the service name; roles in the app decide who may."
   echo "$USER_NAME ALL=(root) NOPASSWD: $CONTROL"
 } > "$SUDOERS_TMP"
 visudo -cqf "$SUDOERS_TMP" || { rm -f "$SUDOERS_TMP"; stop "visudo refused the sudoers line for $CONTROL"; }

@@ -1,11 +1,20 @@
 import { useMemo } from 'react'
 import { Routes, Route, Outlet, Navigate, useNavigate } from 'react-router-dom'
 import { authRoutes, authPath, NavPage, ProtectedRoute } from '@xeplr/ui-account'
+import Home from './pages/Home.jsx'
 import Monitor from './pages/Monitor.jsx'
 
 // The rail is ICON-ONLY when collapsed, so a drawer item without one is
 // invisible until somebody widens the rail. Same 24x24 stroke language the
 // account library's own icons use.
+const HomeIcon = (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <path d="M9 22V12h6v10" />
+  </svg>
+)
+
 const MonitorIcon = (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -30,11 +39,12 @@ function Shell() {
   const navigate = useNavigate()
 
   // The drawer's catalog, by KEY. A key must match a `menus` row's name
-  // (migrations-auth/0006_monitor.sql) — @xeplr/ui-account drops unknown keys
+  // (migrations-auth/0006, 0007) — @xeplr/ui-account drops unknown keys
   // SILENTLY, so a typo removes the item with no error anywhere. The text
   // shown is the row's label, never written here. `path` is how the rail
   // marks the page you are on.
   const drawerItems = useMemo(() => [
+    { key: 'Home', icon: HomeIcon, path: '/home', clickHandler: () => navigate('/home') },
     { key: 'Monitor', icon: MonitorIcon, path: '/monitor', clickHandler: () => navigate('/monitor') }
   ], [navigate])
 
@@ -66,7 +76,9 @@ export default function App() {
       {authRoutes({}, { layout: <Shell /> })}
 
       <Route element={<ProtectedRoute><Shell /></ProtectedRoute>}>
-        <Route path="/" element={<Navigate to="/monitor" replace />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        {/* The server itself — migrations-auth/0007_monitor_home.sql grants who sees it. */}
+        <Route path="/home" element={<Home />} />
         {/* The server's services — migrations-auth/0006_monitor.sql grants who sees it. */}
         <Route path="/monitor" element={<Monitor />} />
       </Route>

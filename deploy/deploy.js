@@ -30,7 +30,6 @@ var OPTIONS = {
   ref: 'Which version of Xeplr/xeplr-monitor (a branch or tag)?',
   source: '',
   ports: 'Its ports: the first of three (sign-in is +1, the API +2)?',
-  allow: 'The services it may control, comma-separated (* matches anything)?',
   'db-host': 'Postgres host (blank: keep the login set before)?',
   'db-port': 'Postgres port?',
   'db-user': 'Postgres user (one that may create databases)?',
@@ -39,7 +38,7 @@ var OPTIONS = {
   'admin-email': 'Super Admin email, to sign in with?',
   domain: 'Its own web address for nginx, e.g. monitor.xeplr.com (blank: leave nginx alone)?'
 };
-var DEFAULTS = { 'ssh-port': '22', ref: 'main', ports: '19400', allow: 'xeplr-*', 'db-port': '5432', 'db-user': 'postgres', 'redis-host': '127.0.0.1', 'redis-port': '6379' };
+var DEFAULTS = { 'ssh-port': '22', ref: 'main', ports: '19400', 'db-port': '5432', 'db-user': 'postgres', 'redis-host': '127.0.0.1', 'redis-port': '6379' };
 
 function parseArgs(argv) {
   var out = {};
@@ -78,7 +77,6 @@ async function gather(given, session) {
   if (v.key) v.key = v.key.replace(/^~(?=\/)/, os.homedir());
   if (!v.source) await askFor('ref', function(x) { return /^[A-Za-z0-9._\/-]+$/.test(x) ? true : 'A branch or tag name.'; });
   await askFor('ports', function(x) { return /^\d{4,5}$/.test(x) ? true : 'A port number.'; });
-  await askFor('allow', function(x) { return /^[A-Za-z0-9@._:*,\s-]+$/.test(x) ? true : 'Names and * only, comma-separated.'; });
 
   session.say('\n  The database and Redis it uses (on the server, or reachable from it).');
   await askFor('db-host');
@@ -130,7 +128,6 @@ function summary(v) {
     '  Server     ' + (v.user ? v.user + '@' : '') + v.host + (v['ssh-port'] !== '22' ? ':' + v['ssh-port'] : '') + (v.key ? ' (key ' + v.key + ')' : ''),
     '  Installs   ' + (v.source ? 'your checkout at ' + path.resolve(v.source) + ' (its HEAD)' : 'Xeplr/xeplr-monitor at ' + v.ref),
     '  Runs       sign-in on ' + (p + 1) + ', the API on ' + (p + 2) + ' (xeplr-monitor-auth, xeplr-monitor-api)',
-    '  Controls   ' + v.allow,
     '  Postgres   ' + (v['db-host'] ? v['db-user'] + '@' + v['db-host'] + ':' + v['db-port'] + ' (password set)' : 'the login set before'),
     '  Redis      ' + v['redis-host'] + ':' + v['redis-port'],
     '  nginx      ' + (v.domain ? v.domain + (/^y/i.test(v.certbot || '') ? ', https (certbot)' : ', http only') : 'left alone'),
@@ -177,7 +174,7 @@ async function deploy(v) {
     await ssh(v, 'umask 077 && cat > ' + tarball, archive);
   }
   var values = {
-    XM_TARBALL: tarball, XM_REF: v.ref || 'main', XM_PORT_BASE: v.ports, XM_ALLOW: v.allow,
+    XM_TARBALL: tarball, XM_REF: v.ref || 'main', XM_PORT_BASE: v.ports,
     XM_DB_HOST: v['db-host'] || '', XM_DB_PORT: v['db-port'] || '', XM_DB_USER: v['db-user'] || '', XM_DB_PASSWORD: v.dbPassword || '',
     XM_REDIS_HOST: v['redis-host'], XM_REDIS_PORT: v['redis-port'], XM_REDIS_PASSWORD: v.redisPassword || '',
     XM_ADMIN_EMAIL: v['admin-email'], XM_ADMIN_PASSWORD: v.adminPassword || '',

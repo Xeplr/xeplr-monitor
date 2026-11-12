@@ -38,7 +38,6 @@ function grants() {
 }
 
 test('every route the monitor checks has its apis row', function() {
-  process.env.MONITOR_ALLOW = process.env.MONITOR_ALLOW || 'xeplr-*';
   var API = require('../routes/monitor').API;
   var names = apiRows().map(function(r) { return r.name; });
   Object.keys(API).forEach(function(k) {
@@ -58,8 +57,13 @@ test('every non-public api has a group and a role besides Super Admin', function
   });
 });
 
-test('the Monitor menu row is the key the side rail uses', function() {
-  assert.match(sql, /'Monitor', 'monitor:view'/);
+test('every side-rail key has its menu row', function() {
   var app = fs.readFileSync(path.join(__dirname, '..', '..', 'ui', 'src', 'App.jsx'), 'utf8');
-  assert.match(app, /key: 'Monitor'/, 'ui/src/App.jsx drawerItems names the same key');
+  var drawer = app.slice(app.indexOf('const drawerItems'), app.indexOf('], [navigate'));
+  var keys = (drawer.match(/key: '([^']+)'/g) || []).map(function(k) { return k.slice(6, -1); });
+  assert.deepEqual(keys, ['Home', 'Monitor']);
+  keys.forEach(function(k) {
+    // @xeplr/ui-account drops a key with no menu row silently.
+    assert.ok(new RegExp("INSERT INTO \"menus\"[\\s\\S]*?'" + k + "', 'monitor:view'").test(sql), 'no menu row named "' + k + '" in migrations-auth');
+  });
 });

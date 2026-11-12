@@ -20,9 +20,10 @@ Each checks its own permission with `requireApi(name)`; the names are the `apis`
 
 | Method | Path | Permission (`apis` row) | |
 |---|---|---|---|
-| GET | `/settings` | View monitor settings | `{ allowed, self }`: what may be added, and the API's own unit |
+| GET | `/settings` | View monitor settings | `{ self }`: the API's own unit, which it will not stop or kill |
+| GET | `/host` | View server statistics | the server itself (the Home page): `linux`, `host { name, os, kernel, arch, uptimeSeconds }`, `memory` in bytes, counted the way `free` counts it (`totalBytes`, `usedBytes`, `freeBytes`, `availableBytes`, `buffersBytes`, `cacheBytes`, `sharedBytes`, `swapTotalBytes`, `swapUsedBytes`), `cpu { cores, model, load, usePercent }`, `disks [{ device, mount, type, totalBytes, usedBytes, availableBytes }]` — from `/proc` and `statfs`, no sudo (`lib/host.js`) |
 | GET | `/services` | List monitored services | every watched service with `status` and `processes` (see the root README) |
-| POST | `/services` | Add a monitored service | `{ unit, label? }` — 403 not allowed, 404 no such service, 409 already there |
+| POST | `/services` | Add a monitored service | `{ unit, label? }` — any systemd service on the server; 404 no such service, 409 already there |
 | PATCH | `/services/:unit` | Edit a monitored service | `{ label?, unit? }`, changed in place |
 | DELETE | `/services/:unit` | Remove a monitored service | stops watching it; the service is not touched |
 | POST | `/services/:unit/start` \| `stop` \| `restart` \| `kill` | Start, stop, restart or kill a service | → `{ unit, status }` afterwards |
@@ -42,6 +43,7 @@ Errors come back as `{ error }` with their status (`createApp`'s handler).
 | `routes/index.js` | `/health` (public), `/whoami`, and `/api/monitor` |
 | `routes/monitor.js` | the monitor's routes, each with `requireApi` |
 | `lib/systemd.js` | status, processes, start/stop/restart/kill, logs, following — `systemctl`, `journalctl`, cgroups and `/proc`, never a shell |
+| `lib/host.js` | the server itself: memory, CPU, disks, uptime |
 | `lib/services.js` | the watched services (`monitor_services`) and the audit log (`monitor_audit`) |
 | `models/` | `MonitoredService`, `MonitorAudit` (`@xeplr/db` `BaseModel`) |
 | `migrations/` | the monitor's tables |
@@ -52,7 +54,6 @@ Errors come back as `{ error }` with their status (`createApp`'s handler).
 
 | Setting | |
 |---|---|
-| `MONITOR_ALLOW` | **required**: the services it may control, comma-separated, `*` matches anything (`xeplr-*`). the control command checks it again as root (the deploy puts it in) |
 | `MONITOR_CONTROL_COMMAND` | in production, `/usr/local/libexec/xeplr-monitor-control` (the deploy sets it): the one command sudoers allows. Unset in development, where `systemctl` is asked directly |
 | `MONITOR_SUDO` | optional: `actions` (default) runs start/stop/restart/kill through `sudo -n`; `all` reads the journal through sudo too; `none` for root or polkit rights |
 | `REDIS_PREFIX` | **required, unique to this app** (`xeplr-monitor:`) |
