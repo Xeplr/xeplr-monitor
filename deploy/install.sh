@@ -19,6 +19,7 @@
 set -euo pipefail
 
 say() { printf '  %s\n' "$*"; }
+export NPM_CONFIG_UPDATE_NOTIFIER=false NPM_CONFIG_FUND=false
 stop() { printf '\n  Stopped: %s\n' "$*" >&2; exit 1; }
 
 APP=/opt/xeplr-monitor
@@ -65,7 +66,12 @@ chown -R "$USER_NAME:$USER_NAME" "$REL"
 
 # ── settings: written once, kept after; secrets made here, never asked ───
 touch "$ENV_FILE"
-XM_ENV_FILE="$ENV_FILE" XM_AUTH_PORT="$AUTH_PORT" XM_API_PORT="$API_PORT" XM_VAR="$VAR" \
+# The answers go to this one process only, not to every command after it.
+env XM_ENV_FILE="$ENV_FILE" XM_AUTH_PORT="$AUTH_PORT" XM_API_PORT="$API_PORT" XM_VAR="$VAR" \
+  XM_ALLOW="$XM_ALLOW" XM_DOMAIN="$XM_DOMAIN" XM_CERTBOT="$XM_CERTBOT" \
+  XM_DB_HOST="$XM_DB_HOST" XM_DB_PORT="$XM_DB_PORT" XM_DB_USER="$XM_DB_USER" XM_DB_PASSWORD="$XM_DB_PASSWORD" \
+  XM_REDIS_HOST="$XM_REDIS_HOST" XM_REDIS_PORT="$XM_REDIS_PORT" XM_REDIS_PASSWORD="$XM_REDIS_PASSWORD" \
+  XM_ADMIN_EMAIL="$XM_ADMIN_EMAIL" XM_ADMIN_PASSWORD="$XM_ADMIN_PASSWORD" \
   "$NODE" "$REL/deploy/settings.cjs" "$REL/api" || stop "the settings could not be written"
 chown root:"$USER_NAME" "$ENV_FILE" && chmod 640 "$ENV_FILE"
 
