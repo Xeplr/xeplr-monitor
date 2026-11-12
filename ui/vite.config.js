@@ -2,7 +2,9 @@
 //
 // XEPLR_UI_MONITOR_SRC=<path to xeplr-ui-monitor/src/index.js> builds from a
 // local checkout instead of the installed package — to try a change to both
-// before either is released. React is deduped so the checkout's copy is not used.
+// before either is released. The checkout's own imports (@xeplr/ui-utils,
+// @xeplr/ui-table, react-router-dom) resolve from its node_modules; React is
+// deduped so only one copy runs.
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
