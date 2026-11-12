@@ -8,22 +8,13 @@ var os = require('os');
 var path = require('path');
 var store = require('../lib/store');
 var users = require('../lib/users');
-var totp = require('../lib/totp');
+var totp = require('@xeplr/utils/lib/totp');
 var session = require('../lib/session');
 
 var dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xeplr-monitor-users-'));
 store.open(dir);
 session.setSecret('x'.repeat(40));
 test.after(function() { fs.rmSync(dir, { recursive: true, force: true }); });
-
-test('codes are the ones RFC 6238 gives (its SHA-1 test vector)', function() {
-  // "12345678901234567890" in base32; at 59 seconds the 8-digit code is 94287082.
-  assert.equal(totp.codeAt('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', 1), '287082');
-  assert.ok(totp.verify('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', '287082', 59000));
-  assert.ok(totp.verify('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', '287082', 89000), 'one step late is still taken');
-  assert.ok(!totp.verify('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', '287082', 200000), 'an old code is not');
-  assert.ok(!totp.verify('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', 'abc'));
-});
 
 test('a monitor needs its folder, an absolute one', function() {
   assert.throws(function() { store.open(''); }, /MONITOR_DATA_DIR is not set/);

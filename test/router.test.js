@@ -9,7 +9,7 @@ var os = require('os');
 var path = require('path');
 var monitor = require('../index');
 var users = require('../lib/users');
-var totp = require('../lib/totp');
+var totp = require('@xeplr/utils/lib/totp');
 
 var dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xeplr-monitor-api-'));
 var server, base;
@@ -80,15 +80,6 @@ test('wrong tries: five, then that email is locked out', async function() {
   assert.match(r.body.error, /Too many wrong tries. Try again in 15 minutes/);
 });
 
-test('one address: more room than one email, then locked too', async function() {
-  var limits = require('../lib/limits');
-  var keys = ['ip:10.0.0.9', 'email:someone@xeplr.com'];
-  for (var i = 0; i < limits.FAILS_PER_ADDRESS - 1; i++) limits.failed(['ip:10.0.0.9', 'email:person' + i + '@xeplr.com']);
-  assert.equal(limits.lockedFor(['ip:10.0.0.9']), 0, 'colleagues on one network do not lock each other out after five');
-  limits.failed(keys);
-  assert.equal(limits.lockedFor(['ip:10.0.0.9']), 15);
-});
-
 test('every sign-in and every change is in the audit log, refused ones too', async function() {
   users.add('auditor@xeplr.com', 'long enough password', { twoStep: false });
   var r = await call('POST', '/login', { email: 'auditor@xeplr.com', password: 'long enough password' });
@@ -96,4 +87,30 @@ test('every sign-in and every change is in the audit log, refused ones too', asy
   assert.ok(a.some(function(e) { return e.action === 'sign-in' && e.email === 'auditor@xeplr.com' && e.ok; }));
   assert.ok(a.some(function(e) { return e.action === 'sign-in' && e.email === 'locked@xeplr.com' && !e.ok; }));
   assert.ok(a.some(function(e) { return e.action === 'add' && e.email === 'ops@xeplr.com' && !e.ok && /not allowed/.test(e.error); }));
+});
+
+// Last: it locks 127.0.0.1, which every request here comes from.
+test('one address: more room than one email, then locked too', async function() {
+  var { FAILS, FAILS_PER_ADDRESS } = require('../lib/router');
+  var tries = 0, status = 401;
+  // A different email each time, so only the address can be what locks.
+  while (status === 401 && tries < FAILS_PER_ADDRESS + 1) {
+    status = (await call('POST', '/login', { email: 'person' + tries + '@xeplr.com', password: 'wrong password' })).status;
+    tries++;
+  }
+  assert.equal(status, 429, 'the address locks in the end');
+  assert.ok(tries > FAILS + 1, 'colleagues on one network do not lock each other out after ' + FAILS + ' (' + tries + ')');
+  users.add('colleague@xeplr.com', 'long enough password', { twoStep: false });
+  assert.equal((await call('POST', '/login', { email: 'colleague@xeplr.com', password: 'long enough password' })).status, 429, 'for every email');
+});
+
+test('through createApp: 127.0.0.1 only, its headers even on a refusal, no CORS, 404s as { error }', async function() {
+  assert.equal(server.address().address, '127.0.0.1');
+  var r = await fetch(base + '/services', { headers: { origin: 'https://elsewhere.example' } });
+  assert.equal(r.status, 401);
+  assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.equal(r.headers.get('x-frame-options'), 'DENY');
+  assert.equal(r.headers.get('access-control-allow-origin'), null, 'another site cannot read it');
+  var nothing = await fetch(base + '/nothing-here');
+  assert.equal(nothing.status, 401, 'an unknown /api path is gated too');
 });

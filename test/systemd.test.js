@@ -26,8 +26,8 @@ test('a real service: watched, read, restarted, killed, stopped, started, follow
   var unit = name + '.service';
   var dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xeplr-monitor-sd-'));
   var script = path.join(dir, 'tick.js');
-  fs.writeFileSync(script, "var n = 0; console.log('started ' + process.pid); setInterval(function() { console.log('tick ' + (++n)); if (n % 5 === 0) console.error('every fifth tick is a warning'); }, 200);\n");
-  var unitText = '[Unit]\nDescription=xeplr-monitor test service\n[Service]\nExecStart=' + process.execPath + ' ' + script + '\nRestart=no\n';
+  fs.writeFileSync(script, "require('child_process').spawn('sleep', ['300'], { stdio: 'ignore' }); var n = 0; console.log('started ' + process.pid); setInterval(function() { console.log('tick ' + (++n)); if (n % 5 === 0) console.error('every fifth tick is a warning'); }, 200);\n");
+  var unitText = '[Unit]\nDescription=xeplr-monitor test service\n[Service]\nExecStart=' + process.execPath + ' ' + script + '\nWorkingDirectory=' + dir + '\nMemoryMax=200M\nRestart=no\n';
   execFileSync('sudo', ['-n', 'tee', '/run/systemd/system/' + unit], { input: unitText, stdio: ['pipe', 'ignore', 'inherit'] });
   execFileSync('sudo', ['-n', 'systemctl', 'daemon-reload']);
   var server;
@@ -57,6 +57,25 @@ test('a real service: watched, read, restarted, killed, stopped, started, follow
     assert.equal(started.body.status.state, 'active');
     var pid1 = started.body.status.pid;
     assert.ok(pid1 > 0);
+
+    // How it is doing: what runs it, its memory against its limit, CPU, and every process of it.
+    await wait(1500);
+    (await call('GET', '/services'));
+    await wait(1200);
+    var one = (await call('GET', '/services')).body[0];
+    var st = one.status;
+    assert.equal(st.runs.commands[0].command, process.execPath + ' ' + script, 'the command it runs');
+    assert.equal(st.runs.workingDirectory, dir);
+    assert.ok(st.runs.unitFile.endsWith(unit));
+    assert.equal(st.memoryMaxBytes, 200 * 1024 * 1024, 'its memory limit');
+    assert.ok(st.memoryBytes > 0 && st.tasks >= 2, JSON.stringify(st));
+    assert.equal(typeof st.cpuPercent, 'number', 'CPU % from two readings');
+    assert.equal(one.processes.length, 2, 'node and its child: ' + JSON.stringify(one.processes));
+    assert.equal(one.processes[0].pid, pid1, 'the main process first');
+    assert.match(one.processes[0].command, /tick\.js/);
+    assert.equal(one.processes[1].command, 'sleep 300');
+    assert.equal(one.processes[1].parent, pid1);
+    assert.ok(one.processes[0].memoryBytes > 1024 * 1024 && one.processes[0].threads >= 1 && one.processes[0].startedAt);
 
     // Followed live: lines arrive as they are written.
     var ctl = new AbortController();

@@ -2,13 +2,10 @@
 // The monitor on its own: `xeplr-monitor-server`, run by its systemd service
 // (deploy/xeplr-monitor.service). Settings come from the environment; a
 // missing required one stops it here, naming it.
+var { checkEnv } = require('@xeplr/base-apis');
 var monitor = require('../index');
 
-var missing = monitor.requiredEnv.filter(function(k) { return !process.env[k]; });
-if (missing.length) {
-  console.error('[xeplr-monitor] not started. Set ' + missing.join(', ') + ' (see the README)');
-  process.exit(1);
-}
+checkEnv(monitor.requiredEnv, { appName: 'xeplr-monitor' }); // names each missing one and exits
 
 monitor.start({
   dataDir: process.env.MONITOR_DATA_DIR,

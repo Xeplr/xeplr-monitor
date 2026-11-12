@@ -1,12 +1,12 @@
 # @xeplr/monitor
 
-See and control a server's services from a web page: whether each one is running, since when, how much memory it uses, how often it restarted, and why it last stopped. Start, stop, restart or kill it, and read its log, either live as it is written or for a time range, with a search box.
+See and control a server's services from a web page: whether each one is running and how healthy it is (memory against its limit, CPU, threads, every process of it, restarts, why it last stopped, and what command it runs). Start, stop, restart or kill it, and read its log, either live as it is written or for a time range, with a search box.
 
 It is what you open when something is down, so it depends on nothing else:
 
 - **Its own sign-in.** It does not use `@xeplr/auth`. If BI's auth service is the one that crashed, a monitor that signed in through it could not be used to restart it.
 - **No database.** Users, the services it watches and its audit log are plain files in one folder. It keeps working when Postgres is down.
-- **One dependency:** express.
+- **Built on the xeplr packages, none of which needs a running service here:** `@xeplr/base-apis` `createApp` (the gate, cookies, request lines through `@xeplr/logs` to stdout and so to the journal, where the monitor can show its own log; in production only 4xx and 5xx; 404s and errors as `{ error }`) and `@xeplr/utils` (`totp` for authenticator codes, `RateLimiter` as the wrong-try lockout, kept in memory, not Redis).
 
 The page itself is [`@xeplr/ui-monitor`](https://github.com/Xeplr/xeplr-ui-monitor), built into `public/` and served by this package.
 
@@ -26,6 +26,21 @@ browser ──https──▶ nginx ──▶ xeplr-monitor (127.0.0.1:19400, its
 - **Stop and kill refuse the monitor's own service**, which it finds from its cgroup. Stopping it would leave nothing to start it again. Restart is allowed.
 - A live log is one `journalctl -f` process per open log. It ends when the page closes the log. Each user can have at most 10 open.
 - Every command has a time limit: 2 minutes for an action (a stop waits for the service's own stop timeout), 30 seconds for a read.
+
+## How healthy a service is
+
+All from systemd and `/proc`, read without sudo, every time the list is asked for (the page asks every 5 seconds):
+
+| | From |
+|---|---|
+| State, since when, why it last ended, exit code, restarts by itself | `systemctl show`: `ActiveState`, `SubState`, `Result`, `ExecMainStatus`, `NRestarts` |
+| **What runs it**: the command line, working folder, user, unit file | `ExecStart`, `WorkingDirectory`, `User`, `FragmentPath`. The same command `ps` shows; the environment file's contents are never read |
+| **Memory** now, its peak, its limit (`MemoryMax`, `MemoryHigh`), swap | `MemoryCurrent`, `MemoryPeak` (systemd 255+), `MemorySwapCurrent` |
+| **CPU %** since the last reading, and CPU seconds in all | `CPUUsageNSec`, two readings apart. Above 100% means more than one core |
+| Threads, against `TasksMax` | `TasksCurrent` |
+| **Every process** of it: pid, parent, command, memory (RSS), swap, CPU %, threads, state, running since | the unit's cgroup (`cgroup.procs`, child cgroups too), then `/proc/<pid>/stat`, `status`, `cmdline`. At most 200, the main one first, then by memory |
+
+The page turns these into a short **needs a look** list for a running service: memory at 90% of its limit or past `MemoryHigh`, restarts, swap in use, threads near their cap, CPU at 90% or more, processes stuck waiting on disk or network (`D`) or left as zombies (`Z`).
 
 ## Settings
 
@@ -86,7 +101,7 @@ Run them as the monitor's user, with `MONITOR_DATA_DIR` set. A password is typed
 
 - **Passwords:** scrypt hashes, at least 12 characters.
 - **Codes:** a new user gets a six-digit code from an authenticator app by default (RFC 6238, 30 seconds; one step either side is accepted). `--no-code` turns that off.
-- **Wrong tries:** after 5 within 15 minutes, that email is locked for 15 minutes. After 20 from one address (any emails), that address is. A wrong email and a wrong password get the same answer and take the same time, so the page doesn't reveal which emails exist.
+- **Wrong tries:** 5 for one email within 15 minutes lock that email until the 15 minutes from its first wrong try are up. 20 from one address (any emails) lock the address the same way. A right password clears the email's count, not the address's. (`RateLimiter` from `@xeplr/utils`, in memory.) A wrong email and a wrong password get the same answer and take the same time, so the page doesn't reveal which emails exist.
 - **Sessions:** a signed cookie (HMAC-SHA256 with `MONITOR_SECRET`) that lasts 12 hours. It is `HttpOnly`, `SameSite=Strict`, and `Secure` behind https. A changed password or code signs out that user's open sessions.
 - **Request header:** every request that changes something must also carry `x-xeplr-monitor: 1`, which a form on another site cannot add.
 
@@ -103,7 +118,7 @@ Mounted at `/api`. Everything except `/login` needs a signed-in user.
 | POST | `/login` | `{ email, password, code? }` → `{ user }` and the cookie. 401 `{ error, needsCode }` asks for the code; 429 means locked. |
 | POST | `/logout` | |
 | GET | `/me` | `{ user, allowed, self }`: who is signed in, what may be added, and the monitor's own service. |
-| GET | `/services` | Every watched service with `status`: `state`, `subState`, `result`, `pid`, `restarts`, `since`, `exitStatus`, `memoryBytes`, `cpuSeconds`, `enabled`, `restartPolicy`. |
+| GET | `/services` | Every watched service with `status` (`state`, `subState`, `result`, `pid`, `restarts`, `since`, `exitStatus`, `memoryBytes`, `memoryPeakBytes`, `memoryMaxBytes`, `memoryHighBytes`, `swapBytes`, `cpuSeconds`, `cpuPercent`, `tasks`, `tasksMax`, `enabled`, `restartPolicy`, `runs: { commands: [{ path, command }], workingDirectory, user, unitFile }`) and `processes` (`pid`, `parent`, `name`, `command`, `state`, `memoryBytes`, `swapBytes`, `threads`, `cpuSeconds`, `cpuPercent`, `startedAt`). |
 | POST | `/services` | `{ unit, label? }`. Refused if the name is not allowed (403) or systemd has no such service (404). |
 | PATCH | `/services/:unit` | `{ label?, unit? }`, changed in place. |
 | DELETE | `/services/:unit` | Stops watching it. The service itself is not touched. |
@@ -112,7 +127,7 @@ Mounted at `/api`. Everything except `/login` needs a signed-in user.
 | GET | `/services/:unit/logs/live` | Server-sent events: one `data:` line per new log line, a heartbeat every 15 seconds. |
 | GET | `/audit` | `?limit=` → `{ entries }`, newest first. |
 
-A host can mount the API itself, with `init(config)` and then `app.use('/api', router())`, or run the whole monitor with `start(config)`.
+Run the whole monitor with `start(config)`. A host built on `createApp` can mount the API itself instead: `init(config)`, then `auth: { middleware: monitor.gate }` and `routes: { '/api': monitor.router() }`. The router needs `createApp`'s body and cookie parsing.
 
 ## Development
 
