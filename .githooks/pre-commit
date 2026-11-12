@@ -1,0 +1,12 @@
+#!/bin/sh
+# WEB-ONLY PAGES, SAID OUT LOUD on every commit — never a block.
+#
+# ui/pages.json lists every page: drawn from screen documents (works in any
+# renderer, a phone app included) or hand-written for the browser ("webOnly",
+# with the reason). This prints a warning for each web-only page and for any
+# route nobody listed. Installed by `npm install` in ui/ (its "prepare" sets
+# git's hooksPath to .githooks).
+if [ -x ui/node_modules/.bin/xeplr-factory ]; then
+  ui/node_modules/.bin/xeplr-factory pages ui
+fi
+exit 0

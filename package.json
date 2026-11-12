@@ -1,64 +1,20 @@
 {
-  "name": "@xeplr/monitor",
-  "version": "0.1.3",
-  "description": "See and control a server's services: status, start, stop, restart, kill, and their logs live. Its own sign-in, no database",
-  "main": "index.js",
-  "files": [
-    "index.js",
-    "lib/",
-    "bin/",
-    "deploy/",
-    "public/"
-  ],
-  "bin": {
-    "xeplr-monitor-server": "./bin/server.js",
-    "xeplr-monitor-users": "./bin/users.js",
-    "xeplr-monitor-deploy": "./bin/deploy.js"
-  },
-  "exports": {
-    ".": "./index.js",
-    "./package.json": "./package.json"
-  },
-  "keywords": [
-    "monitor",
-    "systemd",
-    "journalctl",
-    "logs",
-    "restart",
-    "ops"
-  ],
-  "author": "xeplr",
+  "name": "xeplr-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A xeplr app that shows and controls a server's systemd services: how each is doing, start / stop / restart / kill, live logs. This root holds only the deploy command; the app is api/ and ui/.",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Xeplr/xeplr-monitor"
+  "bin": {
+    "xeplr-monitor-deploy": "deploy/deploy.js"
   },
-  "publishConfig": {
-    "access": "public"
+  "scripts": {
+    "deploy": "node deploy/deploy.js",
+    "test": "npm --prefix api test"
+  },
+  "dependencies": {
+    "@xeplr/cli": "^0.3.8"
   },
   "engines": {
     "node": ">=20"
-  },
-  "dependencies": {
-    "@xeplr/base-apis": "^3.0.3",
-    "@xeplr/utils": "^2.0.1",
-    "express": "^5.3.0"
-  },
-  "scripts": {
-    "test": "node --test test/*.test.js",
-    "build": "vite build --config ui/vite.config.js",
-    "dev:page": "vite --config ui/vite.config.js",
-    "prepack": "npm run build"
-  },
-  "devDependencies": {
-    "@tanstack/react-table": "^8.21.3",
-    "@vitejs/plugin-react": "^5.2.0",
-    "@xeplr/ui-monitor": "^0.1.1",
-    "@xeplr/ui-table": "^1.1.3",
-    "@xeplr/ui-utils": "^1.1.8",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.5",
-    "vite": "^7.3.7"
   }
 }

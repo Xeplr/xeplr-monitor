@@ -1,0 +1,7 @@
+{
+  "routes": ["src/App.jsx"],
+  "documents": [],
+  "webOnly": [
+    { "path": "/monitor", "menu": "Monitor", "reason": "A page written by hand: services, their processes and live logs are not a form (@xeplr/ui-monitor)." }
+  ]
+}

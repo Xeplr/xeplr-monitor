@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+
+require('dotenv').config({ path: require('path').join(__dirname, '..', (process.env.NODE_ENV || 'development') + '.env') });
+
+// ── the database connection, checked first and by name ──────────────────
+//
+// BEFORE the general check, because this one has a fix that nobody can guess
+// from a variable name. The generic check can only say "this is missing";
+// these two settings hold an ENCRYPTED value that has to be produced by a
+// command, so a bare name sends somebody looking for a password to type into
+// a field that will not accept one.
+var CONNECTION_SETTINGS = ['XEPLR_MONITOR_CONNECTION', 'AUTH_DB_CONNECTION_INFO_ENCRYPTED'];
+var blank = CONNECTION_SETTINGS.filter(function (name) { return !process.env[name]; });
+
+if (blank.length) {
+  console.error('\n[api] No database connection.\n');
+  console.error('  ' + blank.join(' and '));
+  console.error('  ' + (blank.length > 1 ? 'are' : 'is') + ' blank in development.env.\n');
+  console.error('  These hold your database host, port, user and password,');
+  console.error('  encrypted together into one value. To fill them in:\n');
+  console.error('    npm run db:encrypt\n');
+  console.error('  It asks for the details and writes both settings for you.');
+  console.error('  Non-interactively:\n');
+  console.error('    npm run db:encrypt -- --host localhost --port 5432 \\');
+  console.error('      --user postgres --password \'<yours>\' --write\n');
+  process.exit(1);
+}
+
+// Fail fast on the rest — shared check from @xeplr/base-apis.
+require('@xeplr/base-apis').checkEnv(require('../env.required.js'), { appName: 'api' });
+
+var path = require('path');
+var { resolveConfig } = require('@xeplr/db');
+var { up } = require('@xeplr/db').sqlMigrator;
+
+async function start() {
+  // WHICH PRODUCT THIS IS. Fixed here, at boot — never from a request.
+  require('@xeplr/db').registerApplication('xeplr-monitor');
+
+  // Name the connection before anything uses it — the migrator resolves by
+  // name from a registry that getConnection does not populate.
+  await resolveConfig('api', process.env.XEPLR_MONITOR_CONNECTION);
+
+  // Migrations run ON BOOT, so starting the API is the only thing anyone has
+  // to remember. Already-applied ones are skipped.
+  //
+  // This app's tables (migrations/: the monitor's services and audit log).
+  var result = await up({
+    db: process.env.DB_API,
+    dir: path.join(__dirname, '..', 'migrations'),
+    connectionName: 'api'
+  });
+  console.log(result.migrations.length
+    ? '[api] ran ' + result.migrations.length + ' migrations'
+    : '[api] migrations up to date');
+
+  // AWAITED before the app is built: the models have no connection at all
+  // until this has finished.
+  await require('../db/setup');
+
+  require('../app')();
+}
+
+start().catch(function(err) {
+  console.error('[api] startup failed:', err.stack || err.message);
+  process.exit(1);
+});
