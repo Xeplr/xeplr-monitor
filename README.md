@@ -89,6 +89,16 @@ Then it shows what it will do, asks to confirm, and runs `deploy/install.sh` on 
 7. keeps the newest three releases;
 8. with a web address: writes the nginx site, checks it with `nginx -t`, reloads, and runs certbot when asked.
 
+### Updating to a new version
+
+```bash
+npx -y github:Xeplr/xeplr-monitor#main --update --host <server> --user <login> --key <key file>
+```
+
+Only the server. The version is `--ref` (default `main`; a tag or commit hash for a particular one), or `--source <checkout>` for your committed HEAD. Everything else is read on the server from the settings the first deploy wrote, which are kept as they are, and **nginx and its certificate are left alone**. It installs the new release, runs any new migrations, and restarts the two services, checking both answer. It asks nothing and does not stop to confirm. Before a first deploy it refuses and says so. To change an answer (a password, `MONITOR_ALLOW`, the address), run the full deploy instead.
+
+### Every answer as an argument
+
 Every value except the passwords can be given as an argument (`--help` lists them); the passwords can come from `XM_DB_PASSWORD`, `XM_REDIS_PASSWORD`, `XM_ADMIN_PASSWORD` for a script. It stops, saying why, when SSH sign-in fails, sudo needs a password, Node.js 20+ or npm is missing, the source cannot be fetched, Postgres refuses, systemd or D-Bus is missing, sudoers is invalid, a service does not answer, or nginx refuses the site.
 
 Keep the ports closed in the firewall (our security group allows only 22, 80 and 443): nginx is the way in.

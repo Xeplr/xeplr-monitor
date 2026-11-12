@@ -7,6 +7,8 @@
 //   npx -y github:Xeplr/xeplr-monitor                    the latest main
 //   npx -y github:Xeplr/xeplr-monitor --ref v1.2.0       a tag
 //   node deploy/deploy.js --source .                     this checkout's HEAD (git archive)
+//   npx -y github:Xeplr/xeplr-monitor --update --host … --user … --key …
+//                                                        a new version, nothing else asked
 //
 // Anything not given as an argument is asked. Passwords are always asked
 // (hidden) — never arguments, which would sit in the shell's history and in
@@ -44,7 +46,7 @@ function parseArgs(argv) {
   for (var i = 0; i < argv.length; i++) {
     var m = /^--([a-z-]+)(?:=(.*))?$/.exec(argv[i]);
     if (!m) throw new Error('Not an option: ' + argv[i] + ' (--help lists them)');
-    if (m[1] === 'help' || m[1] === 'yes' || m[1] === 'no-certbot') { out[m[1]] = true; continue; }
+    if (m[1] === 'help' || m[1] === 'yes' || m[1] === 'no-certbot' || m[1] === 'update') { out[m[1]] = true; continue; }
     if (m[1] === 'certbot') { out.certbot = m[2] !== undefined ? m[2] : 'y'; continue; }
     if (OPTIONS[m[1]] === undefined) throw new Error('Unknown option --' + m[1] + ' (--help lists them)');
     out[m[1]] = m[2] !== undefined ? m[2] : argv[++i];
@@ -107,6 +109,21 @@ async function gather(given, session) {
   return v;
 }
 
+/**
+ * --update: the server, and nothing else. The version is --ref (main) or
+ * --source; every other value is read on the server from what the first
+ * deploy wrote, and nginx is left alone.
+ */
+async function gatherUpdate(given, session) {
+  var v = Object.assign({ 'ssh-port': DEFAULTS['ssh-port'], ref: DEFAULTS.ref }, given);
+  if (v.host === undefined) v.host = await session.ask('  ' + OPTIONS.host, { validate: function(x) { return x ? true : 'A server is needed.'; } });
+  if (v.key) {
+    v.key = v.key.replace(/^~(?=\/)/, os.homedir());
+    if (!fs.existsSync(v.key)) throw new Error('No key file at ' + v.key);
+  }
+  return v;
+}
+
 function summary(v) {
   var p = Number(v.ports);
   return [
@@ -141,6 +158,17 @@ function ssh(v, remote, input) {
 }
 
 async function deploy(v) {
+  if (v.update) {
+    var tar = '';
+    if (v.source) {
+      var arch = execFileSync('git', ['-C', path.resolve(v.source), 'archive', '--format=tar.gz', 'HEAD'], { maxBuffer: 256 * 1024 * 1024 });
+      tar = '/tmp/xeplr-monitor-src-' + Date.now() + '.tgz';
+      await ssh(v, 'umask 077 && cat > ' + tar, arch);
+    }
+    var u = { XM_UPDATE: '1', XM_TARBALL: tar, XM_REF: v.ref || 'main' };
+    await ssh(v, 'sudo -n bash -s', Object.keys(u).map(function(k) { return k + '=' + quote(u[k]); }).join('\n') + '\n' + fs.readFileSync(path.join(__dirname, 'install.sh'), 'utf8'));
+    return;
+  }
   var tarball = '';
   if (v.source) {
     // Only what is committed: the same files a push would publish.
@@ -167,10 +195,18 @@ async function main() {
     Object.keys(OPTIONS).forEach(function(k) { if (OPTIONS[k]) console.log('  --' + k.padEnd(12) + OPTIONS[k].replace(/\?$/, '') + (DEFAULTS[k] ? ' (default ' + DEFAULTS[k] + ')' : '')); });
     console.log('  --source <dir>  install a local checkout\'s HEAD instead of fetching --ref from GitHub');
     console.log('  --certbot / --no-certbot, --yes (deploy without asking to confirm)');
+    console.log('  --update        only a new version: needs --host, --user, --key (and --ref or --source); asks nothing else');
     return;
   }
   var session = createSession();
   try {
+    if (given.update) {
+      var u = await gatherUpdate(given, session);
+      session.say('\n  Updating ' + (u.user ? u.user + '@' : '') + u.host + ' to ' + (u.source ? 'your checkout at ' + path.resolve(u.source) + ' (its HEAD)' : 'Xeplr/xeplr-monitor at ' + u.ref) + '. Everything else stays as it is.\n');
+      await deploy(Object.assign(u, { update: true }));
+      session.say('\n  Updated.');
+      return;
+    }
     var v = await gather(given, session);
     session.say('\n' + summary(v) + '\n');
     if (!given.yes && !(await session.confirm('  Deploy?', false))) { session.say('  Nothing done.'); return; }
