@@ -74,7 +74,9 @@ async function main() {
     ['AUTH_ACTIVATION_URL', site + '/auth/activate'],
     ['AUTH_INVITE_URL', site + '/auth/accept-invite'],
     ['AUTH_RESET_URL', site + '/auth/reset-password'],
-    ['MONITOR_ALLOW', need('XM_ALLOW')]
+    ['MONITOR_ALLOW', need('XM_ALLOW')],
+    // The root-owned command sudoers allows (deploy/control.sh, installed by install.sh).
+    ['MONITOR_CONTROL_COMMAND', '/usr/local/libexec/xeplr-monitor-control']
   ];
   var known = settings.map(function(s) { return s[0]; });
   // Anything else already in the file (an EMAIL_PROVIDER set by hand, say) stays.
