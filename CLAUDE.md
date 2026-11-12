@@ -19,7 +19,7 @@ Read README.md first: how it works, who may do what, the deploy.
 ## Rules
 
 - **Every route has its `apis` row, group and role grants in the same change.** Super Admin and CompanyAdmin get everything; Admin everything; Editor view + control; Creator and Viewer view.
-- **`MONITOR_ALLOW` and sudoers say the same thing** — the deploy writes both from one answer.
+- **sudoers allows one command**, `deploy/control.sh` installed as `/usr/local/libexec/xeplr-monitor-control`, which checks the action, the name and `MONITOR_ALLOW` itself. Never a wildcard in sudoers (sudo-rs refuses it; classic sudo's `*` matches spaces).
 - **Use the xeplr packages; never a local copy.** Something a package lacks is added to that package and released first (e.g. `requireApi` in `@xeplr/base-apis`, `authEventStream` in `@xeplr/ui-account`).
 - **The Monitor page is web only** (`ui/pages.json`, with the reason). Before writing any other page by hand, say so and ask whether it should be a screen instead.
 - No database name, storage folder or other "where data lives" setting is defaulted; folders are absolute.

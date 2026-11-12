@@ -85,18 +85,20 @@ run_api node_modules/.bin/xeplr-migrate create-db --connectionName api --connect
 run_api node_modules/.bin/xeplr-auth-migrate up --connection-env AUTH_DB_CONNECTION_INFO_ENCRYPTED >/dev/null \
   || stop "the sign-in migrations failed"
 
-# ── sudoers: start, stop, restart and kill the allowed services, nothing else
+# ── the one command sudoers allows: deploy/control.sh, with MONITOR_ALLOW in it
+# It checks the action, the name and the pattern itself, so sudoers names the
+# command alone — no wildcard, which newer sudo (sudo-rs) refuses anyway.
+CONTROL=/usr/local/libexec/xeplr-monitor-control
+mkdir -p /usr/local/libexec
+sed -e "s|__MONITOR_ALLOW__|$XM_ALLOW|" -e "s|__SYSTEMCTL__|$SYSTEMCTL|" "$REL/deploy/control.sh" > "$CONTROL.new"
+chown root:root "$CONTROL.new" && chmod 755 "$CONTROL.new" && mv -f "$CONTROL.new" "$CONTROL"
 SUDOERS_TMP=$(mktemp)
 {
-  echo "# Made by xeplr-monitor's deploy from MONITOR_ALLOW=$XM_ALLOW. Changed by the next deploy."
-  IFS=',' read -ra PATTERNS <<< "$XM_ALLOW"
-  for raw in "${PATTERNS[@]}"; do
-    p=$(echo "$raw" | tr -d '[:space:]')
-    [ -n "$p" ] || continue
-    echo "$USER_NAME ALL=(root) NOPASSWD: $SYSTEMCTL start $p, $SYSTEMCTL stop $p, $SYSTEMCTL restart $p, $SYSTEMCTL kill --signal=SIGKILL $p"
-  done
+  echo "# Made by xeplr-monitor's deploy. Changed by the next deploy."
+  echo "# $CONTROL checks the action, the service name and MONITOR_ALLOW=$XM_ALLOW."
+  echo "$USER_NAME ALL=(root) NOPASSWD: $CONTROL"
 } > "$SUDOERS_TMP"
-visudo -cqf "$SUDOERS_TMP" || { rm -f "$SUDOERS_TMP"; stop "the sudoers lines for MONITOR_ALLOW=$XM_ALLOW are not valid"; }
+visudo -cqf "$SUDOERS_TMP" || { rm -f "$SUDOERS_TMP"; stop "visudo refused the sudoers line for $CONTROL"; }
 install -m 440 "$SUDOERS_TMP" /etc/sudoers.d/xeplr-monitor && rm -f "$SUDOERS_TMP"
 sudo -u "$USER_NAME" "$SYSTEMCTL" show -p Version >/dev/null 2>&1 \
   || stop "$USER_NAME cannot ask systemd (no D-Bus?). Install and start dbus, then deploy again"

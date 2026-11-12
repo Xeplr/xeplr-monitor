@@ -82,6 +82,47 @@ test('a real service: read, followed, restarted, killed, stopped, started', { sk
   }
 });
 
+// deploy/control.sh — the one command sudoers allows — as the deploy installs
+// it (MONITOR_ALLOW and systemctl's path put in), run through sudo: it refuses
+// what it must, and the monitor's actions go through it.
+test('the control command: refuses what it must, and controls an allowed service', { skip: skip || false, timeout: 60000 }, async function() {
+  var dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xeplr-monitor-ctl-'));
+  var control = path.join(dir, 'xeplr-monitor-control');
+  var systemctl = execFileSync('sh', ['-c', 'command -v systemctl']).toString().trim();
+  fs.writeFileSync(control, fs.readFileSync(path.join(__dirname, '..', '..', 'deploy', 'control.sh'), 'utf8')
+    .replace('__MONITOR_ALLOW__', 'xeplr-monitortest-*').replace('__SYSTEMCTL__', systemctl), { mode: 0o755 });
+  var code = function(args) {
+    try { execFileSync('sudo', ['-n', control].concat(args), { stdio: 'ignore' }); return 0; } catch (e) { return e.status; }
+  };
+  var unit = 'xeplr-monitortest-ctl-' + Date.now().toString(36) + '.service';
+  execFileSync('sudo', ['-n', 'tee', '/run/systemd/system/' + unit], { input: '[Service]\nExecStart=/bin/sleep 300\n', stdio: ['pipe', 'ignore', 'inherit'] });
+  execFileSync('sudo', ['-n', 'systemctl', 'daemon-reload']);
+  try {
+    assert.equal(code(['stop', 'ssh.service']), 77, 'a service MONITOR_ALLOW does not name');
+    assert.equal(code(['stop', 'xeplr-monitortest-x;reboot']), 64, 'not a plain name');
+    assert.equal(code(['stop', '--now']), 64, 'an option in place of a name');
+    assert.equal(code(['enable', unit]), 64, 'not one of the four actions');
+    assert.equal(code(['stop', unit, 'ssh.service']), 64, 'a second name');
+    assert.equal(code([]), 64, 'nothing');
+
+    systemd.configure({ sudo: 'actions', control: control });
+    assert.equal((await systemd.act(unit, 'start')).state, 'active', 'started through it');
+    assert.equal((await systemd.act(unit, 'restart')).state, 'active', 'restarted through it');
+    await systemd.act(unit, 'kill');
+    await wait(500);
+    assert.notEqual((await systemd.status(unit)).subState, 'running', 'killed through it');
+    await systemd.act(unit, 'start');
+    assert.equal((await systemd.act(unit, 'stop')).state, 'inactive', 'stopped through it');
+  } finally {
+    systemd.configure({ sudo: 'all', control: null });
+    try { execFileSync('sudo', ['-n', 'systemctl', 'stop', unit], { stdio: 'ignore' }); } catch (e) { /* not running */ }
+    try { execFileSync('sudo', ['-n', 'systemctl', 'reset-failed', unit], { stdio: 'ignore' }); } catch (e) { /* not failed */ }
+    execFileSync('sudo', ['-n', 'rm', '-f', '/run/systemd/system/' + unit]);
+    execFileSync('sudo', ['-n', 'systemctl', 'daemon-reload']);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('names: checked before they reach systemctl, and the allow-list matched', function() {
   assert.equal(systemd.unitName('xeplr-bi-api'), 'xeplr-bi-api.service');
   assert.equal(systemd.unitName('getty@tty1.service'), 'getty@tty1.service');

@@ -52,7 +52,8 @@ Errors come back as `{ error }` with their status (`createApp`'s handler).
 
 | Setting | |
 |---|---|
-| `MONITOR_ALLOW` | **required**: the services it may control, comma-separated, `*` matches anything (`xeplr-*`). sudoers repeats it (the deploy writes both) |
+| `MONITOR_ALLOW` | **required**: the services it may control, comma-separated, `*` matches anything (`xeplr-*`). the control command checks it again as root (the deploy puts it in) |
+| `MONITOR_CONTROL_COMMAND` | in production, `/usr/local/libexec/xeplr-monitor-control` (the deploy sets it): the one command sudoers allows. Unset in development, where `systemctl` is asked directly |
 | `MONITOR_SUDO` | optional: `actions` (default) runs start/stop/restart/kill through `sudo -n`; `all` reads the journal through sudo too; `none` for root or polkit rights |
 | `REDIS_PREFIX` | **required, unique to this app** (`xeplr-monitor:`) |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | where Redis is |

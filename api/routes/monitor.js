@@ -35,7 +35,10 @@ var API = {
 // What it may control and how it asks systemd, read once at startup.
 // MONITOR_ALLOW is required (env.required.js); MONITOR_SUDO is optional.
 services.setAllowed(process.env.MONITOR_ALLOW);
-systemd.configure({ sudo: process.env.MONITOR_SUDO || 'actions' });
+// MONITOR_CONTROL_COMMAND: the root-owned command sudoers allows (the deploy
+// installs deploy/control.sh there); unset in development, where systemctl is
+// asked directly.
+systemd.configure({ sudo: process.env.MONITOR_SUDO || 'actions', control: process.env.MONITOR_CONTROL_COMMAND || null });
 
 var LIVE_PER_USER = 10;
 var HEARTBEAT_MS = 15000;

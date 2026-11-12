@@ -7,8 +7,9 @@
 // list, and a unit name is checked against UNIT before it reaches one. Only
 // start, stop, restart and kill change anything.
 //
-// sudo: 'actions' (the default) runs those four through `sudo -n`, which the
-// sudoers file in deploy/ allows for the allowed services only; 'all' reads
+// sudo: 'actions' (the default) runs those four through `sudo -n` — through
+// the control command when one is configured (deploy/control.sh, the only
+// command sudoers allows); 'all' reads
 // the journal through sudo too; 'none' runs everything as the monitor's own
 // user (root, or a user in the systemd-journal group that has polkit rights).
 var { execFile, spawn } = require('child_process');
@@ -63,7 +64,7 @@ function run(bin, args, useSudo, limitMs) {
       if (err) {
         var said = String(stderr || '').trim() || err.message;
         if (err.killed) said = 'No answer within ' + Math.round(limitMs / 1000) + ' seconds';
-        else if (/a password is required|sudo: a terminal is required/.test(said)) said = 'sudo refused: the monitor\'s user may not run "' + bin + ' ' + args.join(' ') + '" without a password. See deploy/sudoers.example';
+        else if (/a password is required|a terminal is required|interactive authentication is required/.test(said)) said = 'sudo refused: the monitor\'s user may not run "' + bin + ' ' + args.join(' ') + '" without a password. The deploy allows it (/etc/sudoers.d/xeplr-monitor): deploy again';
         else if (err.code === 'ENOENT') said = file + ' is not installed here: the monitor controls systemd services, on Linux';
         return reject(Object.assign(new Error(said), { status: 502, stdout: stdout }));
       }
@@ -158,9 +159,13 @@ async function status(unit) {
 /** start | stop | restart | kill (SIGKILL to every process of it). */
 async function act(unit, action) {
   if (ACTIONS.indexOf(action) < 0) throw refuse('Unknown action "' + action + '": start, stop, restart or kill');
-  var args = action === 'kill' ? ['kill', '--signal=SIGKILL', unit] : [action, unit];
   try {
-    await run(cfg.systemctl, args, cfg.sudo !== 'none', ACTION_LIMIT_MS);
+    // With a control command (MONITOR_CONTROL_COMMAND, installed by the
+    // deploy: deploy/control.sh) sudo runs that, which checks the action, the
+    // name and MONITOR_ALLOW itself — sudoers then needs no wildcard.
+    // Without one (development), systemctl itself.
+    if (cfg.control && cfg.sudo !== 'none') await run(cfg.control, [action, unit], true, ACTION_LIMIT_MS);
+    else await run(cfg.systemctl, action === 'kill' ? ['kill', '--signal=SIGKILL', unit] : [action, unit], cfg.sudo !== 'none', ACTION_LIMIT_MS);
   } catch (err) {
     // systemd 255 (Ubuntu 24.04) kills the service, then says it could not
     // signal its "auxiliary processes" even when it has none. Done is done:
