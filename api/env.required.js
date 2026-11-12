@@ -14,10 +14,6 @@ module.exports = [
   // AUTH_ACTIVATION_URL, AUTH_RESET_URL
   ...require('@xeplr/auth').requiredEnv,
 
-  // XEPLR_DATA_DIR — the one folder every file this app keeps lives under,
-  // a folder per company inside it. Absolute, and never defaulted.
-  ...require('@xeplr/actions').requiredEnv,
-
   // ── this app's own ──
   'XEPLR_MONITOR_PORT',
 
@@ -36,8 +32,4 @@ module.exports = [
   // comma-separated (* matches anything), e.g. xeplr-*. sudoers repeats it.
   'MONITOR_ALLOW',
   'XEPLR_MONITOR_CONNECTION',
-
-  // Flows' own database (DB_WORKFLOW) — workflow is embedded in this API but
-  // keeps its tables apart from yours. The library names it.
-  ...require('@xeplr/workflow-api').embedRequiredEnv,
 ];

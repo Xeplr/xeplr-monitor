@@ -1,9 +1,5 @@
-// Models for tables you write by hand (see migrations/README.md) — each one a
-// class extending @xeplr/db's BaseModel, handed to genericRoute in
-// routes/index.js.
-//
-// Tables made as forms (Configure UI → Forms, screens/) need no model: @xeplr/factory saves
-// and reads them from the screen itself.
+// The monitor's tables (migrations/0001_monitor.sql), each a class extending
+// @xeplr/db's BaseModel, used by lib/services.js.
 var { BaseModel } = require('@xeplr/db');
 
 // The systemd services the monitor watches (migrations/0001_monitor.sql).

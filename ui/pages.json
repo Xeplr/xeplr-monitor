@@ -1,62 +1,7 @@
 {
-  "routes": [
-    "src/App.jsx"
-  ],
-  "documents": [
-    {
-      "path": "/tasks",
-      "menu": "Tasks",
-      "screen": "task_list"
-    },
-    {
-      "path": "/tasks/new",
-      "screen": "task_edit"
-    },
-    {
-      "path": "/tasks/:id",
-      "screen": "task_edit"
-    },
-    {
-      "path": "/forms/:form",
-      "screen": "every form's list"
-    },
-    {
-      "path": "/journey/:flow",
-      "screen": "a flow's screens"
-    },
-    {
-      "path": "/journey/:flow/:run",
-      "screen": "a flow's screens"
-    }
-  ],
+  "routes": ["src/App.jsx"],
+  "documents": [],
   "webOnly": [
-    {
-      "path": "/home",
-      "menu": "Home",
-      "reason": "The starter page that proves sign-in and the API work \u2014 replace it with your first page."
-    },
-    {
-      "path": "/monitor",
-      "menu": "Monitor",
-      "reason": "A page written by hand: services, their processes and live logs are not a form (@xeplr/ui-monitor)."
-    },
-    {
-      "path": "/flows",
-      "menu": "Flows",
-      "reason": "The flows list and designer are tools for building, used on a computer."
-    },
-    {
-      "path": "/configure/flows/:flow",
-      "reason": "The flow designer is a tool for building, used on a computer."
-    },
-    {
-      "path": "/configure",
-      "menu": "Configure UI",
-      "reason": "The form designer and menu settings are tools for building, used on a computer."
-    },
-    {
-      "path": "/configure/forms/:form/design/:part",
-      "reason": "The form designer is a tool for building, used on a computer."
-    }
+    { "path": "/monitor", "menu": "Monitor", "reason": "A page written by hand: services, their processes and live logs are not a form (@xeplr/ui-monitor)." }
   ]
 }

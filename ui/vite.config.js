@@ -43,7 +43,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     // Force every import to THIS app's copy, so hook-using libraries don't
     // load twice and break the rules of hooks in ways that read as impossible.
-    resolve: { dedupe: ['react', 'react-dom', 'react-router-dom', '@xeplr/ui-canvas', '@xeplr/ui-table'] },
+    resolve: { dedupe: ['react', 'react-dom', 'react-router-dom', '@xeplr/ui-table', '@xeplr/ui-utils'] },
     // 127.0.0.1, not 'localhost': Node resolves 'localhost' to IPv6 (::1)
     // first, so the dev server listened on ::1 alone and a browser going to
     // 127.0.0.1 was refused.

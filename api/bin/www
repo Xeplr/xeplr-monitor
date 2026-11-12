@@ -32,17 +32,9 @@ require('@xeplr/base-apis').checkEnv(require('../env.required.js'), { appName: '
 var path = require('path');
 var { resolveConfig } = require('@xeplr/db');
 var { up } = require('@xeplr/db').sqlMigrator;
-var factory = require('@xeplr/factory');
-// This app's functions — what screens' events and flows' "let a function
-// decide" pick by name. Registered before anything can publish a screen that
-// names one.
-require('../functions');
-var screens = require('../screens');
 
 async function start() {
-  // WHICH PRODUCT THIS IS, for every file it keeps: each company's files live
-  // in <XEPLR_DATA_DIR>/xeplr-monitor/<company>/… and nowhere else. Fixed here, at
-  // boot — never from a request.
+  // WHICH PRODUCT THIS IS. Fixed here, at boot — never from a request.
   require('@xeplr/db').registerApplication('xeplr-monitor');
 
   // Name the connection before anything uses it — the migrator resolves by
@@ -52,44 +44,21 @@ async function start() {
   // Migrations run ON BOOT, so starting the API is the only thing anyone has
   // to remember. Already-applied ones are skipped.
   //
-  // The screens' own table (factory_screens) first, then this app's.
+  // This app's tables (migrations/: the monitor's services and audit log).
   var result = await up({
     db: process.env.DB_API,
-    dir: factory.migrationsDir,
-    extDir: path.join(__dirname, '..', 'migrations'),
+    dir: path.join(__dirname, '..', 'migrations'),
     connectionName: 'api'
   });
   console.log(result.migrations.length
     ? '[api] ran ' + result.migrations.length + ' migrations'
     : '[api] migrations up to date');
 
-  // AWAITED before the app is built: a model handed to genericRoute at build
-  // time has no connection at all until this has finished.
-  var knex = await require('../db/setup');
+  // AWAITED before the app is built: the models have no connection at all
+  // until this has finished.
+  await require('../db/setup');
 
-  // The screens and their models. A malformed model stops startup here,
-  // rather than silently never running. What people attach through a form's
-  // file field goes in the tenant's own folder under XEPLR_DATA_DIR
-  // (screens/); nothing is served from it — a file comes back only through
-  // the factory's own route, which checks the caller the way reading a record
-  // does.
-  await factory.init({
-    knex: knex,
-    models: screens.models
-  });
-
-  // Screens never published yet are published now, creating their tables.
-  // Ones already published are left alone — Configure UI → Forms owns them.
-  var published = await factory.publishScreens(screens.documents);
-  if (published.published.length) console.log('[api] published screens: ' + published.published.join(', '));
-
-  // FLOWS — @xeplr/workflow-api, inside this API, in a database of its own
-  // (DB_WORKFLOW — created and migrated on first start). It follows this
-  // app's tenancy and creates no companies or workspaces of its own.
-  var buildApp = require('../app');
-  require('../routes/flows').mount(await require('../workflow')(buildApp.memberGate));
-
-  buildApp();
+  require('../app')();
 }
 
 start().catch(function(err) {

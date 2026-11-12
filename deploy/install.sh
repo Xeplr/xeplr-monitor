@@ -41,7 +41,7 @@ SYSTEMCTL=$(command -v systemctl)
 # ── its own user, which reads the journal ────────────────────────────────
 id "$USER_NAME" >/dev/null 2>&1 || { useradd -r -m -d "$VAR" -s /usr/sbin/nologin "$USER_NAME"; say "User $USER_NAME made"; }
 usermod -aG systemd-journal "$USER_NAME"
-mkdir -p "$VAR/data" "$VAR/logs" "$SHARED" "$APP/releases"
+mkdir -p "$VAR/logs" "$SHARED" "$APP/releases"
 chown -R "$USER_NAME:$USER_NAME" "$VAR" && chmod 750 "$VAR"
 
 # ── this release: the source, its packages, the page built ───────────────

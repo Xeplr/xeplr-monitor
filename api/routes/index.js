@@ -19,27 +19,13 @@ router.get('/whoami', function(req, res) {
   res.json({ user: req.user, roles: (req.access || {}).roles || [] });
 });
 
-// ── your data ────────────────────────────────────────────────────────────
+// ── the monitor ──────────────────────────────────────────────────────────
 //
-// MOUNTED UNDER /api, and that prefix matters. The browser asks the UI's dev
-// server for BOTH its own pages and its data, and the dev server decides by
-// path which to forward. Serve data at /tasks and the UI's own /tasks page is
-// shadowed by it — opening that page shows raw JSON instead of the app.
+// MOUNTED UNDER /api, and that prefix matters: the UI's dev server forwards
+// /api to this API and serves every other path as a page.
 //
-// Forms (tasks, and any made in Configure UI) need nothing here — @xeplr/factory
-// serves them at /api/factory/..., mounted in app.js.
-//
-// A table you write by hand gets its four addresses from one line:
-//
-//   var { genericRoute } = require('@xeplr/base-apis');
-//   router.use('/api/things', genericRoute({ key: 'thing', model: require('../models').Thing }));
-
-// The monitor: the server's systemd services — their state, processes and
-// logs, and start / stop / restart / kill (routes/monitor.js).
+// The server's services — their state, processes and logs, and start / stop /
+// restart / kill (routes/monitor.js).
 router.use('/api/monitor', require('./monitor'));
-
-// Flows: @xeplr/workflow-api, at /api/workflow, running inside this API (see
-// routes/flows.js and workflow.js).
-router.use('/api/workflow', require('./flows'));
 
 module.exports = router;

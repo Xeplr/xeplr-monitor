@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "xeplr-monitor backend \u2014 @xeplr/base-apis app.",
+  "description": "xeplr-monitor backend — @xeplr/base-apis app.",
   "main": "app.js",
   "scripts": {
     "check-env": "dotenv -e development.env -- xeplr-check-env",
@@ -18,18 +18,12 @@
     "test": "node --test test/*.test.cjs"
   },
   "dependencies": {
-    "@xeplr/actions": "^2.2.0",
     "@xeplr/auth": "^1.3.0",
     "@xeplr/base-apis": "^3.0.4",
     "@xeplr/db": "^1.1.0",
-    "@xeplr/factory": "^3.0.2",
-    "@xeplr/ui-factory": "^1.8.6",
     "@xeplr/utils": "^1.0.11",
-    "@xeplr/workflow-api": "^2.1.0",
     "dotenv": "^17.4.2",
-    "express": "^5.2.0",
-    "multer": "^2.0.2",
-    "nodemailer": "^10.0.2"
+    "express": "^5.2.0"
   },
   "devDependencies": {
     "@xeplr/cli": "^0.1.8",
