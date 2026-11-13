@@ -74,6 +74,16 @@ A **job** (`@xeplr/jobs`, the **Jobs** page from `@xeplr/ui-jobs`) backs up one 
 
 **The S3 key should only be able to write**: `s3:PutObject` and `s3:AbortMultipartUpload` on `arn:aws:s3:::<bucket>/backups/*`, from the server's IP only, over HTTPS — nothing to list, read or delete. Old backups go by the bucket's lifecycle rule, and Object Lock keeps each one for its first days even from an admin.
 
+**Folders** (`backup-folder`, `api/lib/folderBackup.js`): a job names folders on this server — uploaded files, an app's data, DuckDB files — comma separated, and patterns to leave out (`node_modules, *.log`). Each is archived with `tar -czf` (never through a shell) and uploaded to `<folder>/<server>/folders/<the path>/<name>-<time>.tar.gz`, then deleted locally. Never `/`, `/proc`, `/sys`, `/dev`, `/run`, `/boot`, `/tmp`, nor the monitor's own data folder. It reads only what the monitor's user (`xeplr-monitor`) may read — no sudo. To let it read another app's folder, add it to that folder's group, then restart the monitor:
+
+```sh
+sudo usermod -aG <the folder's group> xeplr-monitor     # ls -ld <folder> shows the group
+sudo chmod -R g+rX <folder>                              # if the group cannot read it yet
+sudo systemctl restart xeplr-monitor-api
+```
+
+A file that changes while it is read (a log being written) does not fail the run: `tar` says so, and the run's output keeps the warning.
+
 The deploy installs `pg_dump` and `mysqldump` (`postgresql-client`, `default-mysql-client`) when missing. `pg_dump` must be at least as new as the Postgres it backs up.
 
 ## Deploy to a server, from your laptop

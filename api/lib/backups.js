@@ -147,8 +147,9 @@ async function start() {
     resolveConnection: resolveConnection
   });
   jobs.registerAction(backupDatabase);
+  jobs.registerAction(require('./folderBackup').createFolderBackup());
   jobs.startScheduler({ intervalMs: 10000 });
-  console.log('[jobs] scheduler started: backup-database');
+  console.log('[jobs] scheduler started: backup-database, backup-folder');
 }
 
 module.exports = { start: start, backupDatabase: backupDatabase, databasesOf: databasesOf, resolveConnection: resolveConnection, jobsUsing: jobsUsing, keyFor: keyFor, OPTIONS: OPTIONS };
