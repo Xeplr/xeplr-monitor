@@ -2,11 +2,13 @@
 // API. Each job backs up one database on a saved server (lib/connections.js)
 // to a saved S3 bucket, on the schedule set on the Jobs page:
 //
-//   backup-database   db-dump (pg_dump / mysqldump, @xeplr/actions) into this
-//                     app's data folder, then s3-upload to
-//                     <folder>/<server>/<engine>/<database>/<file>, then the
-//                     local file is deleted — whether the upload worked or not,
-//                     so a failing bucket never fills the disk
+//   backup-database   for each database chosen (one app's together, in one
+//                     job), one after another: db-dump (pg_dump / mysqldump,
+//                     @xeplr/actions) into this app's data folder, s3-upload to
+//                     <folder>/<server>/<engine>/<database>/<file>, and the
+//                     local file deleted — whether the upload worked or not, so
+//                     a failing bucket never fills the disk. One failing does
+//                     not stop the others; the run fails, naming each that did
 //
 // A job holds the connections' ids; the logins are filled in just for the run
 // (resolveConnection below), so no password is in a job or its run history.
@@ -32,37 +34,61 @@ function keyFor(prefix, host, dbType, database, fileName) {
   return [String(prefix || connections.PREFIX_ROOT).replace(/\/+$/, ''), safe(host), dbType, safe(database), fileName].join('/');
 }
 
+/** One database: dumped, uploaded, the local file deleted. */
+async function backupOne(input, database, system) {
+  var started = Date.now();
+  var dump = await actions.runAction(actions.builtins.dbDump, { dbType: input.dbType, connection: input.connection, database: database }, { system: system });
+  if (dump.status !== 'success') throw failed('The dump', dump);
+  var file = dump.output;
+  try {
+    var bucket = input.targetConnection;
+    var key = keyFor(bucket.prefix, os.hostname(), input.dbType, database, file.fileName);
+    var upload = await actions.runAction(actions.builtins.s3Upload, { connection: bucket, filePath: file.filePath, key: key }, { system: system });
+    if (upload.status !== 'success') throw failed('The upload', upload);
+    return { database: database, fileName: file.fileName, bytes: file.bytes, sha256: file.sha256, key: upload.output.key, versionId: upload.output.versionId || null, durationMs: Date.now() - started };
+  } finally {
+    fs.rm(file.filePath, { force: true }, function() {});
+  }
+}
+
+/** The databases a job names: its list, or the one a job saved before lists had. Each once. */
+function databasesOf(input) {
+  var list = Array.isArray(input.databases) ? input.databases : [];
+  if (!list.length && input.database) list = [input.database];
+  return list.map(function(d) { return String(d).trim(); }).filter(function(d, i, all) { return d && all.indexOf(d) === i; });
+}
+
 var backupDatabase = {
   name: 'backup-database',
-  description: 'Back up one database to S3: dump it (pg_dump / mysqldump), upload the dump, delete the local copy.',
+  description: 'Back up databases to S3 — one app\'s together: dump each (pg_dump / mysqldump), upload it, delete the local copy.',
   inputSchema: [
     { name: 'connectionInfoId', label: 'Database server', type: 'string', required: true, order: 1, optionsFrom: OPTIONS.servers,
       description: 'A saved database server (Backup connections).' },
-    { name: 'database', label: 'Database', type: 'string', required: true, order: 2, optionsFrom: OPTIONS.databases, dependsOn: 'connectionInfoId',
-      description: 'Which database on that server.' },
-    { name: 'targetConnectionInfoId', label: 'Upload to', type: 'string', required: true, order: 3, optionsFrom: OPTIONS.buckets,
+    { name: 'databases', label: 'Databases', type: 'array', order: 2, optionsFrom: OPTIONS.databases, dependsOn: 'connectionInfoId',
+      description: 'Which databases on that server — one app\'s together. Backed up one after another.' },
+    { name: 'database', type: 'string', hidden: true, order: 3,
+      description: 'One database: a job saved before Databases was a list.' },
+    { name: 'targetConnectionInfoId', label: 'Upload to', type: 'string', required: true, order: 4, optionsFrom: OPTIONS.buckets,
       description: 'A saved S3 bucket (Backup connections).' }
   ],
-  example: { database: 'taskie', fileName: 'taskie-2026-11-14T02-00-00.dump', bytes: 52428800, bucket: 'xeplr-db-backups', key: 'backups/ip-172-31-24-174/postgres/taskie/taskie-2026-11-14T02-00-00.dump' },
+  example: { bucket: 'xeplr-db-backups', backedUp: [{ database: 'taskie', fileName: 'taskie-2026-11-14T02-00-00.dump', bytes: 52428800, key: 'backups/ip-172-31-24-174/postgres/taskie/taskie-2026-11-14T02-00-00.dump' }], failed: [] },
   execute: async function(ctx) {
     var input = ctx.input;
     var system = ctx.system || {};
-    var started = Date.now();
-    var dump = await actions.runAction(actions.builtins.dbDump, { dbType: input.dbType, connection: input.connection, database: input.database }, { system: system });
-    if (dump.status !== 'success') throw failed('The dump', dump);
-    var file = dump.output;
-    try {
-      var bucket = input.targetConnection;
-      var key = keyFor(bucket.prefix, os.hostname(), input.dbType, input.database, file.fileName);
-      var upload = await actions.runAction(actions.builtins.s3Upload, { connection: bucket, filePath: file.filePath, key: key }, { system: system });
-      if (upload.status !== 'success') throw failed('The upload', upload);
-      return {
-        database: input.database, dbType: input.dbType, fileName: file.fileName, bytes: file.bytes, sha256: file.sha256,
-        bucket: upload.output.bucket, key: upload.output.key, versionId: upload.output.versionId || null, durationMs: Date.now() - started
-      };
-    } finally {
-      fs.rm(file.filePath, { force: true }, function() {});
+    var names = databasesOf(input);
+    if (!names.length) throw new Error('Choose at least one database');
+    var done = [];
+    var bad = [];
+    for (var i = 0; i < names.length; i++) {
+      try { done.push(await backupOne(input, names[i], system)); } catch (err) { bad.push({ database: names[i], error: err.message }); }
     }
+    var out = { bucket: input.targetConnection.bucket, dbType: input.dbType, backedUp: done, failed: bad };
+    if (bad.length) {
+      var e = new Error(bad.length + ' of ' + names.length + ' not backed up — ' + bad.map(function(b) { return b.database + ': ' + b.error; }).join('; '));
+      e.details = out;
+      throw e;
+    }
+    return out;
   }
 };
 
@@ -75,7 +101,8 @@ async function resolveConnection(id, at) {
   }
   var server = await connections.get(id);
   if (connections.DATABASE_KINDS.indexOf(server.kind) < 0) throw new Error('"Database server" must be a Postgres or MySQL connection; ' + server.name + ' is S3');
-  return connections.resolve(id, at.inputs && at.inputs.database);
+  // A server login: each database is the action's own input, not the login's.
+  return connections.resolve(id);
 }
 
 /** The jobs still naming a connection — a connection in use is not removed. */
@@ -113,4 +140,4 @@ async function start() {
   console.log('[jobs] scheduler started: backup-database');
 }
 
-module.exports = { start: start, backupDatabase: backupDatabase, resolveConnection: resolveConnection, jobsUsing: jobsUsing, keyFor: keyFor, OPTIONS: OPTIONS };
+module.exports = { start: start, backupDatabase: backupDatabase, databasesOf: databasesOf, resolveConnection: resolveConnection, jobsUsing: jobsUsing, keyFor: keyFor, OPTIONS: OPTIONS };
