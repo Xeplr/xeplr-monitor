@@ -1,6 +1,6 @@
 # xeplr-monitor
 
-A xeplr app (made with `@xeplr/cli`): `api/` (Node, `@xeplr/base-apis`, sign-in by `@xeplr/auth`) and `ui/` (React + Vite, `@xeplr/ui-account`). It shows the server itself (**Home**: memory in GB, CPU, disks, uptime) and shows and controls its systemd services (**Monitor**). Both pages are `@xeplr/ui-monitor`'s (`ServerPage`, `MonitorPage`). It also **backs up databases to S3**: each database is a `@xeplr/jobs` job (the **Jobs** page, `@xeplr/ui-jobs`) running `backup-database` (`api/lib/backups.js`: `@xeplr/actions`' `db-dump`, then `s3-upload`), with the logins on **Backup connections** (`ConnectionsPage`; `api/lib/connections.js`, encrypted, never in a job). The sample forms and flows the CLI generates were removed.
+A xeplr app (made with `@xeplr/cli`): `api/` (Node, `@xeplr/base-apis`, sign-in by `@xeplr/auth`) and `ui/` (React + Vite, `@xeplr/ui-account`). It shows the server itself (**Home**: memory in GB, CPU, disks, uptime) and shows and controls its systemd services (**Monitor**). Both pages are `@xeplr/ui-monitor`'s (`ServerPage`, `MonitorPage`). It also **backs up databases to S3**: each job (`@xeplr/jobs`) backs up one app's databases together (the **Jobs** page, `@xeplr/ui-jobs`) running `backup-database` (`api/lib/backups.js`: `@xeplr/actions`' `db-dump`, then `s3-upload`), with the logins on **Backup connections** (`ConnectionsPage`; `api/lib/connections.js`, encrypted, never in a job). The sample forms and flows the CLI generates were removed.
 
 Read README.md first: how it works, who may do what, the deploy.
 

@@ -64,7 +64,7 @@ The page turns these into a **needs a look** list: memory at 90% of its limit or
 
 ## Database backups
 
-Each database is one **job** (`@xeplr/jobs`, the **Jobs** page from `@xeplr/ui-jobs`): pick a database server, a database on it and an S3 bucket, set the schedule (a cron expression, e.g. `0 2 * * *`), save. Run now, the run history and retries are the Jobs page's. A run (`backup-database`, `api/lib/backups.js`):
+A **job** (`@xeplr/jobs`, the **Jobs** page from `@xeplr/ui-jobs`) backs up one app's databases together: pick a database server, tick its databases, pick an S3 bucket, set the schedule (a cron expression, e.g. `0 2 * * *`), save. Each database is backed up in turn; one failing does not stop the others, and the run fails naming each that did. Run now, the run history and retries are the Jobs page's. For each database, a run (`backup-database`, `api/lib/backups.js`):
 
 1. `db-dump` (`@xeplr/actions`): `pg_dump -Fc` or `mysqldump --single-transaction` into `XEPLR_DATA_DIR`, never through a shell, the password in the program's environment;
 2. `s3-upload`: the file to `s3://<bucket>/<folder>/<server>/<engine>/<database>/<file>` in 16 MB parts, with a SHA-256 checksum (Object Lock needs one);

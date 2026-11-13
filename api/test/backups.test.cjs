@@ -45,9 +45,46 @@ test('where a backup goes: <folder>/<server>/<engine>/<database>/<file>', functi
   assert.equal(backups.keyFor('backups/prod/', 'my host', 'mysql', 'a/b', 'f.sql.gz'), 'backups/prod/my-host/mysql/a-b/f.sql.gz', 'nothing from a name can add a folder');
 });
 
-test('the backup action\'s form: a server, a database on it, a bucket — dropdowns, no logins', function() {
-  var fields = backups.backupDatabase.inputSchema;
-  assert.deepStrictEqual(fields.map(function(f) { return [f.name, f.optionsFrom, f.dependsOn || null]; }),
-    [['connectionInfoId', 'backupServers', null], ['database', 'backupDatabases', 'connectionInfoId'], ['targetConnectionInfoId', 'backupBuckets', null]]);
+test('the backup action\'s form: a server, databases on it (ticks), a bucket — no logins', function() {
+  var fields = backups.backupDatabase.inputSchema.filter(function(f) { return !f.hidden; });
+  assert.deepStrictEqual(fields.map(function(f) { return [f.name, f.type, f.optionsFrom, f.dependsOn || null]; }),
+    [['connectionInfoId', 'string', 'backupServers', null], ['databases', 'array', 'backupDatabases', 'connectionInfoId'], ['targetConnectionInfoId', 'string', 'backupBuckets', null]]);
   assert.ok(fields.every(function(f) { return !/password|secret/i.test(f.name); }));
+});
+
+test('the databases a job names: its list, each once — or the one a job saved before lists', function() {
+  assert.deepStrictEqual(backups.databasesOf({ databases: ['xeplr_bi', ' xeplr_bi_jobs ', 'xeplr_bi'] }), ['xeplr_bi', 'xeplr_bi_jobs']);
+  assert.deepStrictEqual(backups.databasesOf({ database: 'taskie' }), ['taskie']);
+  assert.deepStrictEqual(backups.databasesOf({ databases: [], database: '' }), []);
+});
+
+test('several databases: each dumped and uploaded in turn; one failing does not stop the others, and the run fails naming it', async function() {
+  var actions = require('@xeplr/actions');
+  var real = actions.runAction;
+  var calls = [];
+  actions.runAction = async function(def, input) {
+    calls.push(def.name + ':' + (input.database || input.key));
+    if (def.name === 'db-dump') return input.database === 'broken' ? { status: 'failed', error: { message: 'pg_dump: database "broken" does not exist' } }
+      : { status: 'success', output: { filePath: '/nowhere/' + input.database + '.dump', fileName: input.database + '.dump', bytes: 10, sha256: 'x' } };
+    return { status: 'success', output: { bucket: 'b', key: input.key, versionId: 'v1' } };
+  };
+  try {
+    var input = { dbType: 'postgres', connection: {}, databases: ['xeplr_bi', 'broken', 'xeplr_bi_jobs'], targetConnection: { bucket: 'b', prefix: 'backups' } };
+    await assert.rejects(backups.backupDatabase.execute({ input: input, system: {} }), function(err) {
+      assert.match(err.message, /^1 of 3 not backed up — broken: The dump: pg_dump: database "broken" does not exist$/);
+      assert.deepStrictEqual(err.details.backedUp.map(function(b) { return b.database; }), ['xeplr_bi', 'xeplr_bi_jobs']);
+      return true;
+    });
+    assert.deepStrictEqual(calls.map(function(c) { return c.split(':')[0]; }), ['db-dump', 's3-upload', 'db-dump', 'db-dump', 's3-upload'], 'in turn, the broken one skipped to the next');
+    var ok = await backups.backupDatabase.execute({ input: Object.assign({}, input, { databases: ['xeplr_bi'] }), system: {} });
+    assert.deepStrictEqual([ok.backedUp.length, ok.failed.length, ok.bucket], [1, 0, 'b']);
+  } finally {
+    actions.runAction = real;
+  }
+});
+
+test('the installed @xeplr/actions has db-dump and s3-upload (2.2.2 did not: every backup failed)', function() {
+  var b = require('@xeplr/actions').builtins;
+  assert.equal(b.dbDump && b.dbDump.name, 'db-dump');
+  assert.equal(b.s3Upload && b.s3Upload.name, 's3-upload');
 });
