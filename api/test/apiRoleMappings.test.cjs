@@ -38,10 +38,12 @@ function grants() {
 }
 
 test('every route the monitor checks has its apis row', function() {
-  var API = require('../routes/monitor').API;
   var names = apiRows().map(function(r) { return r.name; });
-  Object.keys(API).forEach(function(k) {
-    assert.ok(names.indexOf(API[k]) > -1, 'routes/monitor.js checks "' + API[k] + '", which no migrations-auth file inserts');
+  ['monitor', 'connections'].forEach(function(file) {
+    var API = require('../routes/' + file).API;
+    Object.keys(API).forEach(function(k) {
+      assert.ok(names.indexOf(API[k]) > -1, 'routes/' + file + '.js checks "' + API[k] + '", which no migrations-auth file inserts');
+    });
   });
 });
 
@@ -61,9 +63,11 @@ test('every side-rail key has its menu row', function() {
   var app = fs.readFileSync(path.join(__dirname, '..', '..', 'ui', 'src', 'App.jsx'), 'utf8');
   var drawer = app.slice(app.indexOf('const drawerItems'), app.indexOf('], [navigate'));
   var keys = (drawer.match(/key: '([^']+)'/g) || []).map(function(k) { return k.slice(6, -1); });
-  assert.deepEqual(keys, ['Home', 'Monitor']);
+  assert.deepEqual(keys, ['Home', 'Monitor', 'Jobs', 'Backup connections']);
+  // Jobs' menu row is @xeplr/jobs' own (its migrations-auth, run alongside).
+  var jobsSql = fs.readdirSync(path.join(path.dirname(require.resolve('@xeplr/jobs')), 'migrations-auth')).map(function(f) { return fs.readFileSync(path.join(path.dirname(require.resolve('@xeplr/jobs')), 'migrations-auth', f), 'utf8'); }).join('\n');
   keys.forEach(function(k) {
     // @xeplr/ui-account drops a key with no menu row silently.
-    assert.ok(new RegExp("INSERT INTO \"menus\"[\\s\\S]*?'" + k + "', 'monitor:view'").test(sql), 'no menu row named "' + k + '" in migrations-auth');
+    assert.ok(new RegExp("INSERT INTO \"menus\"[\\s\\S]*?'" + k + "', '[a-z]+:view'").test(sql + jobsSql), 'no menu row named "' + k + '" in migrations-auth');
   });
 });
