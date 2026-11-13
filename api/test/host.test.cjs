@@ -49,3 +49,33 @@ test('on this server: the same numbers as free and df', { skip: linux ? false : 
     assert.equal(root.totalBytes, Number(df), 'the root disk\'s size, as df says');
   }
 });
+
+test('the cache by kind: file contents, kernel objects, disk buffers — adding up to cache & buffers', function() {
+  var m = host.memoryOf(host.meminfo(SAMPLE));
+  var kb = 1024;
+  assert.deepStrictEqual(m.cacheKinds.map(function(k) { return [k.key, k.bytes / kb]; }), [['files', 2900000], ['kernel', 300000], ['buffers', 200000]]);
+  assert.equal(m.cacheKinds.reduce(function(n, k) { return n + k.bytes; }, 0), m.cacheBytes + m.buffersBytes);
+});
+
+test('the cache by whom: each service under a slice, user.slice whole, biggest first; the rest as others', function() {
+  var fs = require('fs');
+  var path = require('path');
+  var root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'cg-'));
+  var put = function(dir, file, shmem, slab) {
+    fs.mkdirSync(path.join(root, dir), { recursive: true });
+    fs.writeFileSync(path.join(root, dir, 'memory.stat'), 'anon 5\nfile ' + file + '\nshmem ' + shmem + '\nslab_reclaimable ' + slab + '\n');
+  };
+  put('system.slice', 9000, 0, 0);
+  put('system.slice/postgresql.service', 6000, 1000, 500);
+  put('system.slice/nginx.service', 100, 0, 0);
+  put('system.slice/idle.service', 0, 0, 0);
+  put('user.slice', 2000, 0, 0);
+  put('user.slice/user-1000.slice', 2000, 0, 0);
+  put('init.scope', 50, 0, 0);
+  var by = host.cacheByGroup(10000, root);
+  assert.deepStrictEqual(by.groups, [{ name: 'postgresql.service', bytes: 5500 }, { name: 'user.slice', bytes: 2000 }, { name: 'nginx.service', bytes: 100 }, { name: 'init.scope', bytes: 50 }],
+    'a slice\'s services, not the slice again; user.slice whole; nothing for an empty one');
+  assert.equal(by.othersBytes, 10000 - 7650);
+  assert.equal(host.cacheByGroup(1, path.join(root, 'none')), null, 'no cgroup v2: nothing');
+  fs.rmSync(root, { recursive: true });
+});
