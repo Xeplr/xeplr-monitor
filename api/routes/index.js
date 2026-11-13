@@ -26,6 +26,15 @@ router.get('/whoami', function(req, res) {
 //
 // The server's services — their state, processes and logs, and start / stop /
 // restart / kill (routes/monitor.js).
+router.use('/api/monitor/connections', require('./connections'));
 router.use('/api/monitor', require('./monitor'));
+
+// The backup jobs (@xeplr/jobs, lib/backups.js): /api/jobs, /api/job-occurrences,
+// /api/actions — the Jobs page of @xeplr/ui-jobs. Each operation checked
+// against jobs' own apis rows (node_modules/@xeplr/jobs/migrations-auth).
+var { requireApi } = require('@xeplr/base-apis');
+router.use('/api', require('@xeplr/jobs').router({
+  auth: { list: requireApi('List jobs'), getById: requireApi('Get job'), save: requireApi('Save job'), delete: requireApi('Delete job') }
+}));
 
 module.exports = router;

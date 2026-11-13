@@ -1,0 +1,116 @@
+// THE BACKUP JOBS — @xeplr/jobs, in their own database (DB_JOBS), run by this
+// API. Each job backs up one database on a saved server (lib/connections.js)
+// to a saved S3 bucket, on the schedule set on the Jobs page:
+//
+//   backup-database   db-dump (pg_dump / mysqldump, @xeplr/actions) into this
+//                     app's data folder, then s3-upload to
+//                     <folder>/<server>/<engine>/<database>/<file>, then the
+//                     local file is deleted — whether the upload worked or not,
+//                     so a failing bucket never fills the disk
+//
+// A job holds the connections' ids; the logins are filled in just for the run
+// (resolveConnection below), so no password is in a job or its run history.
+var fs = require('fs');
+var os = require('os');
+var path = require('path');
+var jobs = require('@xeplr/jobs');
+var actions = require('@xeplr/actions');
+var connections = require('./connections');
+
+// Kinds of things a job's dropdowns list (ui-jobs optionSources, ui/src/App.jsx).
+var OPTIONS = { servers: 'backupServers', databases: 'backupDatabases', buckets: 'backupBuckets' };
+
+function failed(step, result) {
+  var e = new Error(step + ': ' + ((result.error && result.error.message) || 'failed'));
+  e.details = result.error || null;
+  return e;
+}
+
+/** Where a backup goes: <folder>/<server>/<engine>/<database>/<file>. */
+function keyFor(prefix, host, dbType, database, fileName) {
+  var safe = function(s) { return String(s).replace(/[^A-Za-z0-9._-]+/g, '-'); };
+  return [String(prefix || connections.PREFIX_ROOT).replace(/\/+$/, ''), safe(host), dbType, safe(database), fileName].join('/');
+}
+
+var backupDatabase = {
+  name: 'backup-database',
+  description: 'Back up one database to S3: dump it (pg_dump / mysqldump), upload the dump, delete the local copy.',
+  inputSchema: [
+    { name: 'connectionInfoId', label: 'Database server', type: 'string', required: true, order: 1, optionsFrom: OPTIONS.servers,
+      description: 'A saved database server (Backup connections).' },
+    { name: 'database', label: 'Database', type: 'string', required: true, order: 2, optionsFrom: OPTIONS.databases, dependsOn: 'connectionInfoId',
+      description: 'Which database on that server.' },
+    { name: 'targetConnectionInfoId', label: 'Upload to', type: 'string', required: true, order: 3, optionsFrom: OPTIONS.buckets,
+      description: 'A saved S3 bucket (Backup connections).' }
+  ],
+  example: { database: 'taskie', fileName: 'taskie-2026-11-14T02-00-00.dump', bytes: 52428800, bucket: 'xeplr-db-backups', key: 'backups/ip-172-31-24-174/postgres/taskie/taskie-2026-11-14T02-00-00.dump' },
+  execute: async function(ctx) {
+    var input = ctx.input;
+    var system = ctx.system || {};
+    var started = Date.now();
+    var dump = await actions.runAction(actions.builtins.dbDump, { dbType: input.dbType, connection: input.connection, database: input.database }, { system: system });
+    if (dump.status !== 'success') throw failed('The dump', dump);
+    var file = dump.output;
+    try {
+      var bucket = input.targetConnection;
+      var key = keyFor(bucket.prefix, os.hostname(), input.dbType, input.database, file.fileName);
+      var upload = await actions.runAction(actions.builtins.s3Upload, { connection: bucket, filePath: file.filePath, key: key }, { system: system });
+      if (upload.status !== 'success') throw failed('The upload', upload);
+      return {
+        database: input.database, dbType: input.dbType, fileName: file.fileName, bytes: file.bytes, sha256: file.sha256,
+        bucket: upload.output.bucket, key: upload.output.key, versionId: upload.output.versionId || null, durationMs: Date.now() - started
+      };
+    } finally {
+      fs.rm(file.filePath, { force: true }, function() {});
+    }
+  }
+};
+
+/** A job's connection id → the login, for that run only. The database server's login carries the job's database. */
+async function resolveConnection(id, at) {
+  if (at.field === 'targetConnectionInfoId') {
+    var row = await connections.get(id);
+    if (row.kind !== 's3') throw new Error('"Upload to" must be an S3 connection; ' + row.name + ' is ' + row.kind);
+    return connections.resolve(id);
+  }
+  var server = await connections.get(id);
+  if (connections.DATABASE_KINDS.indexOf(server.kind) < 0) throw new Error('"Database server" must be a Postgres or MySQL connection; ' + server.name + ' is S3');
+  return connections.resolve(id, at.inputs && at.inputs.database);
+}
+
+/** The jobs still naming a connection — a connection in use is not removed. */
+async function jobsUsing(id) {
+  var Job = jobs.boundModels().Job;
+  var rows = await Job.query().select('name')
+    .whereRaw('("inputs"::jsonb ->> \'connectionInfoId\') = ? OR ("inputs"::jsonb ->> \'targetConnectionInfoId\') = ?', [id, id]);
+  return rows.map(function(r) { return r.name; });
+}
+
+/** The jobs database: made if missing, then the package's own migrations. */
+async function migrate() {
+  var db = require('@xeplr/db');
+  var resolved = await db.resolveConfig('api');
+  await db.ensureDatabaseFor(resolved, process.env.DB_JOBS);
+  var result = await db.migrator.up({
+    db: process.env.DB_JOBS,
+    dir: path.join(path.dirname(require.resolve('@xeplr/jobs')), 'migrations'),
+    connectionName: 'api'
+  });
+  if (result.migrations.length) console.log('[jobs] ran migrations: ' + result.migrations.join(', '));
+}
+
+/** Migrate, start @xeplr/jobs with only the backup action, start the scheduler. */
+async function start() {
+  await migrate();
+  await jobs.init({
+    database: process.env.DB_JOBS,
+    connection: process.env.XEPLR_MONITOR_CONNECTION,
+    defaultActions: false,
+    resolveConnection: resolveConnection
+  });
+  jobs.registerAction(backupDatabase);
+  jobs.startScheduler({ intervalMs: 10000 });
+  console.log('[jobs] scheduler started: backup-database');
+}
+
+module.exports = { start: start, backupDatabase: backupDatabase, resolveConnection: resolveConnection, jobsUsing: jobsUsing, keyFor: keyFor, OPTIONS: OPTIONS };

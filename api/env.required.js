@@ -29,4 +29,9 @@ module.exports = [
   'DB_API',
 
   'XEPLR_MONITOR_CONNECTION',
+
+  // The backup jobs' own database (DB_JOBS), and where a dump is written
+  // before it goes to S3 (XEPLR_DATA_DIR, absolute) — lib/backups.js.
+  ...require('@xeplr/jobs').requiredEnv,
+  ...require('@xeplr/actions').requiredEnv,
 ];

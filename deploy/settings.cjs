@@ -59,6 +59,10 @@ async function main() {
     ['XEPLR_MONITOR_CONNECTION', connection],
     ['AUTH_DB_CONNECTION_INFO_ENCRYPTED', connection],
     ['DB_API', 'xeplr_monitor_api'],
+    // The backup jobs' own database (@xeplr/jobs), and where a dump is written
+    // before it goes to S3 (and is then deleted).
+    ['DB_JOBS', 'xeplr_monitor_jobs'],
+    ['XEPLR_DATA_DIR', path.join(need('XM_VAR'), 'data')],
     ['AUTH_DB_NAME', 'xeplr_monitor_auth'],
     ['REDIS_HOST', e.XM_REDIS_HOST || '127.0.0.1'],
     ['REDIS_PORT', e.XM_REDIS_PORT || '6379'],
@@ -66,7 +70,8 @@ async function main() {
     ['REDIS_PREFIX', 'xeplr-monitor:'],
     ['AUTH_JWT_SECRET', jwt],
     ['AUTH_URL', 'http://127.0.0.1:' + need('XM_AUTH_PORT')],
-    ['XEPLR_AUTH_MIGRATIONS', './migrations-auth'],
+    // This app's permissions and the jobs' own (the Jobs page and its routes).
+    ['XEPLR_AUTH_MIGRATIONS', './migrations-auth,./node_modules/@xeplr/jobs/migrations-auth'],
     ['AUTH_SUPER_ADMIN_EMAIL', need('XM_ADMIN_EMAIL')],
     ['AUTH_SUPER_ADMIN_PASSWORD', adminPassword],
     ['AUTH_TENANT_HEADER', 'none'],

@@ -13,6 +13,16 @@
       "path": "/monitor",
       "menu": "Monitor",
       "reason": "A page written by hand: services, their processes and live logs are not a form (@xeplr/ui-monitor)."
+    },
+    {
+      "path": "/jobs",
+      "menu": "Jobs",
+      "reason": "@xeplr/ui-jobs' own pages: the backup jobs' schedules and runs."
+    },
+    {
+      "path": "/connections",
+      "menu": "Backup connections",
+      "reason": "A page written by hand (@xeplr/ui-monitor ConnectionsPage): logins whose secrets go in and never come back out are not a generic form."
     }
   ]
 }

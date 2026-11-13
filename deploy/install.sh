@@ -56,10 +56,23 @@ command -v npm >/dev/null || stop "npm is not installed"
 command -v tar >/dev/null || stop "tar is not installed"
 SYSTEMCTL=$(command -v systemctl)
 
+# ── the dump programs the backup jobs run (pg_dump, mysqldump) ───────────
+# Installed when missing, from the server's own packages. A failure here does
+# not stop the deploy: the backups would fail and say which program is missing.
+if ! command -v pg_dump >/dev/null || ! command -v mysqldump >/dev/null; then
+  if command -v apt-get >/dev/null; then
+    say "Installing the database dump programs (postgresql-client, default-mysql-client)"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql-client default-mysql-client >/dev/null 2>&1 \
+      || say "  could not install them: backups will fail until pg_dump and mysqldump are installed"
+  else
+    say "  pg_dump / mysqldump are missing and this is not apt: install them for the backups"
+  fi
+fi
+
 # ── its own user, which reads the journal ────────────────────────────────
 id "$USER_NAME" >/dev/null 2>&1 || { useradd -r -m -d "$VAR" -s /usr/sbin/nologin "$USER_NAME"; say "User $USER_NAME made"; }
 usermod -aG systemd-journal "$USER_NAME"
-mkdir -p "$VAR/logs" "$SHARED" "$APP/releases"
+mkdir -p "$VAR/logs" "$VAR/data" "$SHARED" "$APP/releases"
 chown -R "$USER_NAME:$USER_NAME" "$VAR" && chmod 750 "$VAR"
 
 # ── this release: the source, its packages, the page built ───────────────

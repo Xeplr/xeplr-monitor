@@ -62,6 +62,20 @@ Read without sudo, every time the list is asked for (the page asks every 5 secon
 
 The page turns these into a **needs a look** list: memory at 90% of its limit or past `MemoryHigh`, restarts, swap in use, threads near their cap, CPU at 90%+, processes stuck on disk or network (`D`) or zombies (`Z`).
 
+## Database backups
+
+Each database is one **job** (`@xeplr/jobs`, the **Jobs** page from `@xeplr/ui-jobs`): pick a database server, a database on it and an S3 bucket, set the schedule (a cron expression, e.g. `0 2 * * *`), save. Run now, the run history and retries are the Jobs page's. A run (`backup-database`, `api/lib/backups.js`):
+
+1. `db-dump` (`@xeplr/actions`): `pg_dump -Fc` or `mysqldump --single-transaction` into `XEPLR_DATA_DIR`, never through a shell, the password in the program's environment;
+2. `s3-upload`: the file to `s3://<bucket>/<folder>/<server>/<engine>/<database>/<file>` in 16 MB parts, with a SHA-256 checksum (Object Lock needs one);
+3. the local file is deleted, whether the upload worked or not.
+
+**The logins** are on the **Backup connections** page (`ConnectionsPage`, admins only): a database connection is a **server login** (Postgres or MySQL: host, port, user, password) — the job picks the database, from a list read live from that server — and an S3 connection is a bucket, its region, a folder (`backups` or inside it) and an access key. Passwords and keys are encrypted with `ENCRYPTION_KEY` (`@xeplr/utils`) in `backup_connections`, never sent back to a browser, and never in a job: a job holds the connection's id, and the login is filled in only for the run (`resolveConnection`). A connection a job still uses cannot be removed.
+
+**The S3 key should only be able to write**: `s3:PutObject` and `s3:AbortMultipartUpload` on `arn:aws:s3:::<bucket>/backups/*`, from the server's IP only, over HTTPS — nothing to list, read or delete. Old backups go by the bucket's lifecycle rule, and Object Lock keeps each one for its first days even from an admin.
+
+The deploy installs `pg_dump` and `mysqldump` (`postgresql-client`, `default-mysql-client`) when missing. `pg_dump` must be at least as new as the Postgres it backs up.
+
 ## Deploy to a server, from your laptop
 
 ```bash
