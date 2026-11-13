@@ -83,10 +83,9 @@ function Shell() {
 
   return (
     <div className="app">
-      {/* SAMPLE LOGOS — replace public/logo.svg and public/logo-wide.svg with
-          your own. `logo` is the small mark in the top bar and the collapsed
-          rail; `expandedLogo` is the wider wordmark the rail swaps to when you
-          widen it. */}
+      {/* The monitor's mark (a pulse) and wordmark — public/logo.svg, also the
+          tab's icon, and public/logo-wide.svg, which picks its text colour by
+          the system's light or dark (an image cannot follow currentColor). */}
       <NavPage
         logo="/logo.svg"
         expandedLogo="/logo-wide.svg"
