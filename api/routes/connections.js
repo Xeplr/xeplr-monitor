@@ -68,7 +68,9 @@ router.get('/buckets', requireApi(API.list), options(['s3']));
 router.get('/databases', requireApi(API.list), answer(async function(req) {
   var id = req.query.connectionInfoId;
   if (!id) return { dataArray: [] };
-  return { dataArray: (await connections.databasesOn(id)).map(function(n) { return { id: n, name: n }; }) };
+  // connectionId on each: @xeplr/ui-jobs also filters a dependent list in the
+  // browser by it, and drops rows without it — an empty list, no error.
+  return { dataArray: (await connections.databasesOn(id)).map(function(n) { return { id: n, name: n, connectionId: id }; }) };
 }));
 
 router.post('/', requireApi(API.save), change('connection-add', async function(req) { return { connection: await connections.add(req.body, who(req)) }; }));
