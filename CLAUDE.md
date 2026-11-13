@@ -1,6 +1,6 @@
 # xeplr-monitor
 
-A xeplr app (made with `@xeplr/cli`): `api/` (Node, `@xeplr/base-apis`, sign-in by `@xeplr/auth`) and `ui/` (React + Vite, `@xeplr/ui-account`). It shows the server itself (**Home**: memory in GB, CPU, disks, uptime) and shows and controls its systemd services (**Monitor**). Both pages are `@xeplr/ui-monitor`'s (`ServerPage`, `MonitorPage`). It also **backs up databases to S3**: each job (`@xeplr/jobs`) backs up one app's databases together (the **Jobs** page, `@xeplr/ui-jobs`) running `backup-database` (`api/lib/backups.js`: `@xeplr/actions`' `db-dump`, then `s3-upload`), with the logins on **Backup connections** (`ConnectionsPage`; `api/lib/connections.js`, encrypted, never in a job). The sample forms and flows the CLI generates were removed.
+A xeplr app (made with `@xeplr/cli`): `api/` (Node, `@xeplr/base-apis`, sign-in by `@xeplr/auth`) and `ui/` (React + Vite, `@xeplr/ui-account`). It shows the server itself (**Home**: memory in GB, CPU, disks, uptime) and shows and controls its systemd services (**Monitor**). Both pages are `@xeplr/ui-monitor`'s (`ServerPage`, `MonitorPage`). It also **backs up databases and its own data folder to S3** with `@xeplr/backups` (`backup-database`, `backup-folder`), run by `@xeplr/jobs` (`api/lib/jobs.js`; the **Jobs** page, `@xeplr/ui-jobs`), with the logins on **Backup connections** (`ConnectionsPage`; the package's router at `/api/monitor/connections`, encrypted, never in a job). The sample forms and flows the CLI generates were removed.
 
 Read README.md first: how it works, who may do what, the deploy.
 
@@ -10,7 +10,7 @@ Read README.md first: how it works, who may do what, the deploy.
 |---|---|
 | a route | `api/routes/monitor.js` — with `requireApi('<name>')`, AND the `apis` row (name, group) plus its role grants in a new `api/migrations-auth/000N_*.sql`, in the same change. Add the name to the `API` map; `api/test/apiRoleMappings.test.cjs` fails otherwise |
 | how a service is read or controlled | `api/lib/systemd.js` (never a shell: argument lists only, names checked by `unitName`) |
-| the backups: what a run does, the logins | `api/lib/backups.js` (the action, the resolver, the jobs' start), `api/lib/connections.js` + `api/routes/connections.js` (the logins); dumping and uploading themselves are `@xeplr/actions`' (`db-dump`, `s3-upload`) — changed there and released first |
+| the backups: what a run does, the logins | `@xeplr/backups` (its own repo: the actions, the logins, the router) — changed there and released first; dumping, archiving and uploading are `@xeplr/actions`' (`db-dump`, `folder-archive`, `s3-upload`). This app only starts jobs with them (`api/lib/jobs.js`) and mounts the router (`api/routes/index.js`) |
 | the server's own numbers (Home) | `api/lib/host.js` (`/proc`, `statfs` — the numbers `free` and `df` show) |
 | the watched services, the audit log | `api/lib/services.js`, `api/models/`, a new `api/migrations/000N_*.sql` (never edit an applied one) |
 | what the page shows or does | `@xeplr/ui-monitor` (its own repo: model, controllers, designs) — not here. This app only mounts it (`ui/src/pages/Monitor.jsx`) |

@@ -64,7 +64,7 @@ The page turns these into a **needs a look** list: memory at 90% of its limit or
 
 ## Database backups
 
-A **job** (`@xeplr/jobs`, the **Jobs** page from `@xeplr/ui-jobs`) backs up one app's databases together: pick a database server, tick its databases, pick an S3 bucket, set the schedule (a cron expression, e.g. `0 2 * * *`), save. Each database is backed up in turn; one failing does not stop the others, and the run fails naming each that did. Run now, the run history and retries are the Jobs page's. For each database, a run (`backup-database`, `api/lib/backups.js`):
+Backups are [`@xeplr/backups`](https://github.com/Xeplr/xeplr-backups) — the same package any xeplr app can mount — run by this app's `@xeplr/jobs` (`api/lib/jobs.js`). A **job** (`@xeplr/jobs`, the **Jobs** page from `@xeplr/ui-jobs`) backs up one app's databases together: pick a database server, tick its databases, pick an S3 bucket, set the schedule (a cron expression, e.g. `0 2 * * *`), save. Each database is backed up in turn; one failing does not stop the others, and the run fails naming each that did. Run now, the run history and retries are the Jobs page's. For each database, a run (`backup-database`):
 
 1. `db-dump` (`@xeplr/actions`): `pg_dump -Fc` or `mysqldump --single-transaction` into `XEPLR_DATA_DIR`, never through a shell, the password in the program's environment;
 2. `s3-upload`: the file to `s3://<bucket>/<folder>/<server>/<engine>/<database>/<file>` in 16 MB parts, with a SHA-256 checksum (Object Lock needs one);
@@ -74,13 +74,7 @@ A **job** (`@xeplr/jobs`, the **Jobs** page from `@xeplr/ui-jobs`) backs up one 
 
 **The S3 key should only be able to write**: `s3:PutObject` and `s3:AbortMultipartUpload` on `arn:aws:s3:::<bucket>/backups/*`, from the server's IP only, over HTTPS — nothing to list, read or delete. Old backups go by the bucket's lifecycle rule, and Object Lock keeps each one for its first days even from an admin.
 
-**Folders** (`backup-folder`, `api/lib/folderBackup.js`): a job names folders on this server — uploaded files, an app's data, DuckDB files — comma separated, and patterns to leave out (`node_modules, *.log`). Each is archived with `tar -czf` (never through a shell) and uploaded to `<folder>/<server>/folders/<the path>/<name>-<time>.tar.gz`, then deleted locally. Never `/`, `/proc`, `/sys`, `/dev`, `/run`, `/boot`, `/tmp`, nor the monitor's own data folder. It reads only what the monitor's user (`xeplr-monitor`) may read — no sudo. To let it read another app's folder, add it to that folder's group, then restart the monitor:
-
-```sh
-sudo usermod -aG <the folder's group> xeplr-monitor     # ls -ld <folder> shows the group
-sudo chmod -R g+rX <folder>                              # if the group cannot read it yet
-sudo systemctl restart xeplr-monitor-api
-```
+**Folders** (`backup-folder`): a job names folders of **the monitor's own data folder** (`XEPLR_DATA_DIR/xeplr-monitor/…`), comma separated (blank: all of it), and patterns to leave out (`node_modules, *.log`). Each is archived with `tar -czf` (`@xeplr/actions`' `folder-archive`, never through a shell) and uploaded to `<folder>/<server>/xeplr-monitor/folders/<folder>/<name>-<time>.tar.gz`, then deleted locally. A path outside the data folder, `../`, or a link pointing out is refused, and the folder's own `backups/` and `tmp/` are never archived. **An app backs up only its own files**: another app's folders are backed up by that app, mounting `@xeplr/backups` itself.
 
 A file that changes while it is read (a log being written) does not fail the run: `tar` says so, and the run's output keeps the warning.
 

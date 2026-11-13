@@ -14,10 +14,5 @@ class MonitorAudit extends BaseModel {
   static get jsonSchema() { return BaseModel.schema({ required: ['action', 'ok'] }); }
 }
 
-// The logins the backup jobs use (migrations/0002_backup_connections.sql), by lib/connections.js.
-class BackupConnection extends BaseModel {
-  static get tableName() { return 'backup_connections'; }
-  static get jsonSchema() { return BaseModel.schema({ required: ['name', 'kind', 'details', 'secret'] }); }
-}
 
-module.exports = { MonitoredService: MonitoredService, MonitorAudit: MonitorAudit, BackupConnection: BackupConnection };
+module.exports = { MonitoredService: MonitoredService, MonitorAudit: MonitorAudit };

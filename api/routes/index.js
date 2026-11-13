@@ -26,13 +26,20 @@ router.get('/whoami', function(req, res) {
 //
 // The server's services — their state, processes and logs, and start / stop /
 // restart / kill (routes/monitor.js).
-router.use('/api/monitor/connections', require('./connections'));
+// The logins the backups use (@xeplr/backups' router): the Backup connections
+// page and the jobs' dropdowns. Each route checked by this app's requireApi;
+// each change in the monitor's audit log, by the connection's name.
+var { requireApi } = require('@xeplr/base-apis');
+var services = require('../lib/services');
+router.use('/api/monitor/connections', require('@xeplr/backups').router({
+  requireApi: requireApi,
+  audit: function(e) { return services.audit({ email: e.email, ip: e.ip, action: e.action, unit: 'connection: ' + e.name, ok: e.ok, error: e.error }); }
+}));
 router.use('/api/monitor', require('./monitor'));
 
-// The backup jobs (@xeplr/jobs, lib/backups.js): /api/jobs, /api/job-occurrences,
+// The backup jobs (@xeplr/jobs, lib/jobs.js): /api/jobs, /api/job-occurrences,
 // /api/actions — the Jobs page of @xeplr/ui-jobs. Each operation checked
 // against jobs' own apis rows (node_modules/@xeplr/jobs/migrations-auth).
-var { requireApi } = require('@xeplr/base-apis');
 router.use('/api', require('@xeplr/jobs').router({
   auth: { list: requireApi('List jobs'), getById: requireApi('Get job'), save: requireApi('Save job'), delete: requireApi('Delete job') }
 }));
