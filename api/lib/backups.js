@@ -62,19 +62,30 @@ var backupDatabase = {
   name: 'backup-database',
   description: 'Back up databases to S3 — one app\'s together: dump each (pg_dump / mysqldump), upload it, delete the local copy.',
   inputSchema: [
-    { name: 'connectionInfoId', label: 'Database server', type: 'string', required: true, order: 1, optionsFrom: OPTIONS.servers,
+    // NOT `required`: jobs swaps each *ConnectionInfoId for its login and
+    // removes the id before the action's inputs are checked, so a required id
+    // fails every run ("Missing required input field"). execute checks the
+    // logins arrived instead.
+    { name: 'connectionInfoId', label: 'Database server', type: 'string', order: 1, optionsFrom: OPTIONS.servers,
       description: 'A saved database server (Backup connections).' },
     { name: 'databases', label: 'Databases', type: 'array', order: 2, optionsFrom: OPTIONS.databases, dependsOn: 'connectionInfoId',
       description: 'Which databases on that server — one app\'s together. Backed up one after another.' },
     { name: 'database', type: 'string', hidden: true, order: 3,
       description: 'One database: a job saved before Databases was a list.' },
-    { name: 'targetConnectionInfoId', label: 'Upload to', type: 'string', required: true, order: 4, optionsFrom: OPTIONS.buckets,
-      description: 'A saved S3 bucket (Backup connections).' }
+    { name: 'targetConnectionInfoId', label: 'Upload to', type: 'string', order: 4, optionsFrom: OPTIONS.buckets,
+      description: 'A saved S3 bucket (Backup connections).' },
+    // What jobs fills in for the run from the two ids above — declared, or the
+    // input check strips them before execute sees them. Never saved in a job.
+    { name: 'dbType', type: 'string', hidden: true, system: true },
+    { name: 'connection', type: 'object', hidden: true, system: true },
+    { name: 'targetConnection', type: 'object', hidden: true, system: true }
   ],
   example: { bucket: 'xeplr-db-backups', backedUp: [{ database: 'taskie', fileName: 'taskie-2026-11-14T02-00-00.dump', bytes: 52428800, key: 'backups/ip-172-31-24-174/postgres/taskie/taskie-2026-11-14T02-00-00.dump' }], failed: [] },
   execute: async function(ctx) {
     var input = ctx.input;
     var system = ctx.system || {};
+    if (!input.connection) throw new Error('Choose the database server');
+    if (!input.targetConnection) throw new Error('Choose where to upload to');
     var names = databasesOf(input);
     if (!names.length) throw new Error('Choose at least one database');
     var done = [];
