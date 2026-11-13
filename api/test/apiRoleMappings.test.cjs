@@ -39,10 +39,9 @@ function grants() {
 
 test('every route the monitor checks has its apis row', function() {
   var names = apiRows().map(function(r) { return r.name; });
-  ['monitor', 'connections'].forEach(function(file) {
-    var API = require('../routes/' + file).API;
-    Object.keys(API).forEach(function(k) {
-      assert.ok(names.indexOf(API[k]) > -1, 'routes/' + file + '.js checks "' + API[k] + '", which no migrations-auth file inserts');
+  [['routes/monitor.js', require('../routes/monitor').API], ['@xeplr/backups', require('@xeplr/backups').API]].forEach(function(pair) {
+    Object.keys(pair[1]).forEach(function(k) {
+      assert.ok(names.indexOf(pair[1][k]) > -1, pair[0] + ' checks "' + pair[1][k] + '", which no migrations-auth file inserts');
     });
   });
 });

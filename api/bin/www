@@ -58,9 +58,9 @@ async function start() {
   // until this has finished.
   await require('../db/setup');
 
-  // DATABASE BACKUPS — @xeplr/jobs in its own database (DB_JOBS): the
-  // backup jobs set on the Jobs page, run on their schedules (lib/backups.js).
-  await require('../lib/backups').start();
+  // BACKUPS — @xeplr/jobs in its own database (DB_JOBS) with @xeplr/backups'
+  // actions: the jobs set on the Jobs page, run on their schedules (lib/jobs.js).
+  await require('../lib/jobs').start();
 
   require('../app')();
 }

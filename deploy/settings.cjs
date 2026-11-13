@@ -71,7 +71,7 @@ async function main() {
     ['AUTH_JWT_SECRET', jwt],
     ['AUTH_URL', 'http://127.0.0.1:' + need('XM_AUTH_PORT')],
     // This app's permissions and the jobs' own (the Jobs page and its routes).
-    ['XEPLR_AUTH_MIGRATIONS', './migrations-auth,./node_modules/@xeplr/jobs/migrations-auth'],
+    ['XEPLR_AUTH_MIGRATIONS', './migrations-auth,./node_modules/@xeplr/jobs/migrations-auth,./node_modules/@xeplr/backups/migrations-auth'],
     ['AUTH_SUPER_ADMIN_EMAIL', need('XM_ADMIN_EMAIL')],
     ['AUTH_SUPER_ADMIN_PASSWORD', adminPassword],
     ['AUTH_TENANT_HEADER', 'none'],
