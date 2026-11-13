@@ -47,6 +47,7 @@ test('where a backup goes: <folder>/<server>/<engine>/<database>/<file>', functi
 
 test('the backup action\'s form: a server, databases on it (ticks), a bucket — no logins', function() {
   var fields = backups.backupDatabase.inputSchema.filter(function(f) { return !f.hidden; });
+  assert.deepStrictEqual(backups.backupDatabase.inputSchema.filter(function(f) { return f.system; }).map(function(f) { return f.name; }), ['dbType', 'connection', 'targetConnection'], 'the logins jobs fills in: declared, hidden, never on the form');
   assert.deepStrictEqual(fields.map(function(f) { return [f.name, f.type, f.optionsFrom, f.dependsOn || null]; }),
     [['connectionInfoId', 'string', 'backupServers', null], ['databases', 'array', 'backupDatabases', 'connectionInfoId'], ['targetConnectionInfoId', 'string', 'backupBuckets', null]]);
   assert.ok(fields.every(function(f) { return !/password|secret/i.test(f.name); }));
@@ -87,4 +88,28 @@ test('the installed @xeplr/actions has db-dump and s3-upload (2.2.2 did not: eve
   var b = require('@xeplr/actions').builtins;
   assert.equal(b.dbDump && b.dbDump.name, 'db-dump');
   assert.equal(b.s3Upload && b.s3Upload.name, 's3-upload');
+});
+
+test('the run as jobs makes it: the ids swapped for logins and removed — and still valid', async function() {
+  var actions = require('@xeplr/actions');
+  var made = await actions.resolveConnections({ connectionInfoId: 'pg', targetConnectionInfoId: 's3', databases: ['taskie'] }, async function(id) {
+    return id === 'pg' ? { dbType: 'postgres', connection: { host: 'h', user: 'u', password: 'p' } } : { bucket: 'b', region: 'ap-south-1', prefix: 'backups' };
+  });
+  assert.equal(made.connectionInfoId, undefined, 'jobs removes the id');
+  var real = actions.runAction;
+  var seen = null;
+  actions.runAction = async function(def, input) {
+    if (def.name === 'db-dump') return { status: 'success', output: { filePath: '/nowhere/x', fileName: 'x.dump', bytes: 1, sha256: 's' } };
+    seen = input;
+    return { status: 'success', output: { bucket: 'b', key: input.key } };
+  };
+  try {
+    var result = await real(backups.backupDatabase, made);
+    assert.equal(result.status, 'success', JSON.stringify(result.error));
+    assert.equal(seen.connection.bucket, 'b');
+  } finally {
+    actions.runAction = real;
+  }
+  var none = await real(backups.backupDatabase, { databases: ['taskie'] });
+  assert.match(none.error.message, /Choose the database server/);
 });
